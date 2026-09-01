@@ -258,8 +258,10 @@ select:hover,input:hover{border-color:var(--text-3)}
 .runbar{
   margin-top:22px;background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
   box-shadow:var(--shadow);padding:16px 18px;
-  display:flex;flex-wrap:wrap;gap:16px 22px;align-items:flex-end;
+  display:flex;flex-wrap:wrap;gap:16px 20px;align-items:flex-start;
 }
+/* drop the buttons to sit level with the input boxes, not their labels */
+.runbtns{display:flex;gap:9px;align-items:center;margin-top:23px}
 .runbar .ctl{min-width:104px}
 .runbar .ctl.wide{min-width:160px}
 .runbar .grow{flex:1}
@@ -275,20 +277,22 @@ select:hover,input:hover{border-color:var(--text-3)}
 .btn.tiny{padding:6px 11px;font-size:var(--step--1);font-weight:600;box-shadow:none}
 
 /* Settings that change what is being simulated, or how it is shown, are
-   fenced into named groups so they read apart from the plain run inputs. */
+   fenced into named groups so they read apart from the plain run inputs.
+   The toggles stack, which keeps each group narrow enough that the run
+   buttons stay on the first line. */
 .fgroup{
-  flex:1 1 260px;min-width:0;
-  margin:0;padding:2px 14px 12px;
+  flex:0 0 auto;min-width:0;
+  margin:0;padding:2px 14px 11px;
   border:1px solid var(--rule);border-radius:var(--r);
   background:var(--ground);
 }
-.fgroup.snug{flex:0 0 auto}
 .fgroup > legend{
   padding:0 7px;margin-left:-3px;
   font-size:.63rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
   color:var(--text-2);
 }
-.fgroup .frow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.fgroup .frow{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.fgroup .frow .btn{margin-top:2px}
 .fgroup .switch span{font-weight:500}
 .switch{display:inline-flex;align-items:center;gap:9px;font-size:var(--step-0);font-weight:600;cursor:pointer}
 .switch input{appearance:none;width:38px;height:21px;border-radius:999px;background:var(--rule);position:relative;transition:background .15s;margin:0;cursor:pointer;flex:none}
@@ -610,7 +614,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
       <span class="flabel">Delay (ms)</span>
       <input type="number" id="delay" value="1000" min="0" max="5000" step="50">
     </div>
-    <fieldset class="fgroup snug">
+    <fieldset class="fgroup">
       <legend>Board</legend>
       <div class="frow">
         <label class="switch"><input type="checkbox" id="render" checked><span>Visualize play</span></label>
@@ -626,7 +630,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
         <button class="btn ghost tiny" id="ruleReset" type="button">Reset to official</button>
       </div>
     </fieldset>
-    <div style="display:flex;gap:9px;align-items:center">
+    <div class="runbtns">
       <button class="btn" id="run">Run</button>
       <button class="btn ghost" id="pause" disabled>Pause</button>
       <button class="btn ghost" id="reset" disabled>Reset</button>
