@@ -614,6 +614,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
       <legend>Board</legend>
       <div class="frow">
         <label class="switch"><input type="checkbox" id="render" checked><span>Visualize play</span></label>
+        <label class="switch"><input type="checkbox" id="alternate"><span>Alternate first move</span></label>
       </div>
     </fieldset>
     <fieldset class="fgroup">
@@ -890,11 +891,12 @@ function blankLedger(){
   return l;
 }
 
-function newGame(cfg, seed){
+function newGame(cfg, seed, first){
   const rng = makeRng(seed);
+  const start = first ? 1 : 0;
   const g = {
-    cfg, seed, rng,
-    turn:0, cur:0, over:false, winner:null, reason:"",
+    cfg, seed, rng, first:start,
+    turn:0, cur:start, over:false, winner:null, reason:"",
     houses:32, hotels:12,
     pot:0,                              // free parking pot
     shortageTurns:0,
@@ -2231,6 +2233,7 @@ function drainLog(g){
 function newAgg(){
   return {
     games:0, wins:[0,0], draws:0, turnsSum:0, capped:0, busted:0,
+    firstWins:0, secondWins:0, decided:0, startedFirst:[0,0],
     netSum:[0,0], peakSum:[0,0],
     ledger:[blankLedger(), blankLedger()],
     st:[0,1].map(()=>({rentGot:0,rentPaid:0,bought:0,auctionsWon:0,housesBuilt:0,hotelsBuilt:0,
@@ -2244,6 +2247,11 @@ function collect(a,g){
   a.turnsSum += Math.ceil(g.turn/2);
   if(g.reason === "turn cap") a.capped++; else a.busted++;
   if(g.winner === 0) a.draws++; else a.wins[g.winner-1]++;
+  a.startedFirst[g.first]++;
+  if(g.winner){
+    a.decided++;
+    if(g.winner - 1 === g.first) a.firstWins++; else a.secondWins++;
+  }
   if(g.shortageTurns > 0){ a.shortageGames++; a.shortageSum += Math.ceil(g.shortageTurns/2); }
   g.players.forEach((p,pi)=>{
     a.netSum[pi] += netWorth(g,p);
@@ -2291,7 +2299,9 @@ function renderResults(a, cfg){
       <span style="color:var(--text-3);font-size:1rem"> / </span><span style="color:var(--p2)">${money(a.netSum[1]/a.games)}</span></div>
       <div class="s">P1 / P2</div></div>
     <div><div class="k">Housing shortage</div><div class="v">${a.shortageGames?pct(a.shortageGames/a.games):"0%"}</div>
-      <div class="s">${a.shortageGames? (a.shortageSum/a.shortageGames).toFixed(1)+" turns locked out, when it happened" : "the pool never ran dry"}</div></div>`;
+      <div class="s">${a.shortageGames? (a.shortageSum/a.shortageGames).toFixed(1)+" turns locked out, when it happened" : "the pool never ran dry"}</div></div>
+    <div><div class="k">Moved first</div><div class="v">${a.decided?pct(a.firstWins/a.decided):"—"}</div>
+      <div class="s">${firstMoveNote(a, cfg)}</div></div>`;
 
   const wb = $("#winbar");
   wb.innerHTML =
@@ -2391,6 +2401,21 @@ function renderResults(a, cfg){
     `Player 1 moves first, worth roughly two points of win rate on its own — run the same pairing with the ` +
     `doctrines swapped to see past it.`;
 }
+/* How often the player who opened the game went on to win it. Only meaningful
+   as a measure of the first move itself when the seat alternates — otherwise
+   Player 1 holds it every game and the figure is just their win rate wearing
+   a different hat, which the caption says plainly. */
+function firstMoveNote(a, cfg){
+  if(!a.decided) return "no decided games";
+  if(!cfg.alternate)
+    return "Player 1 opened every game — turn on “Alternate first move” to separate the seat from the doctrine";
+  const edge = (a.firstWins/a.decided - 0.5) * 100;
+  const dir = Math.abs(edge) < 0.05 ? "dead level"
+            : (edge > 0 ? "+" + edge.toFixed(1) + " pts to the opener"
+                        : edge.toFixed(1) + " pts to the opener");
+  return `seats alternated, ${a.startedFirst[0]} / ${a.startedFirst[1]} split · ${dir}`;
+}
+
 function shapeRow(label, f){
   return `<tr><td>${label}</td><td class="n">${f(0)}</td><td class="n">${f(1)}</td></tr>`;
 }
@@ -2440,6 +2465,7 @@ function readCfg(){
     turnCap: clamp(parseInt($("#turncap").value)||300, 20, 5000),
     delay: clamp(parseInt($("#delay").value)||0, 0, 5000),
     render: $("#render").checked,
+    alternate: $("#alternate").checked,
     rules: {
       auctions: $("#ruleAuction").checked,
       freeParkingPot: $("#ruleFP").checked,
@@ -2459,7 +2485,7 @@ function setPill(t){ $("#turnpill").textContent = t; }
 
 async function runVisual(cfg, agg){
   for(let n=0; n<cfg.games && !stopFlag; n++){
-    const g = newGame(cfg, randomSeed());
+    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % 2 : 0);
     resetLog();
     setPill(`game ${n+1} / ${cfg.games}`);
     paintBoard(g); paintPlayers(g);
@@ -2497,7 +2523,7 @@ async function runHeadless(cfg, agg){
   for(let n=0; n<cfg.games && !stopFlag; n++){
     if(pauseFlag) await gate();
     if(stopFlag) break;
-    const g = newGame(cfg, randomSeed());
+    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % 2 : 0);
     const it = playGame(g);
     while(!it.next().done){}
     collect(agg, g);
