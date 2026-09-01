@@ -1,0 +1,2609 @@
+<title>Monopoly Strategy Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@400;600;700&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,700&family=Roboto+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  color-scheme: light;
+  --ink:#101A16;
+  --ground:#EFEDE4;
+  --panel:#F8F6EF;
+  --panel-2:#E8E5D9;
+  --rule:#CFCBBB;
+  --rule-soft:#DFDBCC;
+  --text:#1B241F;
+  --text-2:#5C665E;
+  --text-3:#8C948B;
+  --brass:#A8762A;
+  --brass-soft:#EBDDC1;
+  --p1:#1D6E7C;
+  --p2:#B4632A;
+  --good:#2E7D4F;
+  --warn:#B07C13;
+  --bad:#A93226;
+  --shadow:0 1px 2px rgba(16,26,22,.06), 0 8px 24px -12px rgba(16,26,22,.22);
+  --shadow-lift:0 2px 4px rgba(16,26,22,.08), 0 18px 44px -18px rgba(16,26,22,.35);
+
+  /* board is a physical object: same in both themes */
+  --board-field:#C6E1CE;
+  --board-space:#F4F1E4;
+  --board-line:#20302A;
+  --board-text:#1A241E;
+
+  --g-brown:#955436;
+  --g-lightblue:#93D3F0;
+  --g-pink:#CE2D82;
+  --g-orange:#EE8B23;
+  --g-red:#E02A2A;
+  --g-yellow:#F0D419;
+  --g-green:#12A054;
+  --g-darkblue:#1268B0;
+  --g-rail:#2B2B2B;
+  --g-util:#8FB6C6;
+
+  --btn-bg:var(--ink);
+  --btn-fg:#EFEDE4;
+
+  /* Text-safe variants of the deed colours. The board fills are chosen to be
+     read as blocks of ink on a pale board; several are far too light to serve
+     as type on a panel, so each gets a darkened twin for running text. */
+  --t-brown:#7A4429;
+  --t-lightblue:#19779E;
+  --t-pink:#B02470;
+  --t-orange:#A85B09;
+  --t-red:#BE1F1F;
+  --t-yellow:#836E04;
+  --t-green:#0D7A40;
+  --t-darkblue:#1163A8;
+  --t-rail:#33332F;
+  --t-util:#467587;
+
+  --r:3px;
+  --step--1:.72rem;
+  --step-0:.845rem;
+  --step-1:1rem;
+  --step-2:1.35rem;
+  --step-3:1.95rem;
+  --step-4:2.9rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#0E1714;
+    --panel:#16211D;
+    --panel-2:#1E2B26;
+    --rule:#2C3B34;
+    --rule-soft:#233029;
+    --text:#E7E4D8;
+    --text-2:#9BA79F;
+    --text-3:#6E7B73;
+    --brass:#D3A455;
+    --brass-soft:#3A2F1A;
+    --btn-bg:#D3A455;
+    --btn-fg:#14201C;
+
+    --t-brown:#C79066;
+    --t-lightblue:#79CBEC;
+    --t-pink:#EE83B8;
+    --t-orange:#F0A455;
+    --t-red:#F0776C;
+    --t-yellow:#DFC64C;
+    --t-green:#54C486;
+    --t-darkblue:#63ACE8;
+    --t-rail:#BCC0B9;
+    --t-util:#A2C7D5;
+    --p1:#4FB3C2;
+    --p2:#E09750;
+    --good:#57BE83;
+    --warn:#D9AE4A;
+    --bad:#E0715F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 18px 44px -18px rgba(0,0,0,.85);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#0E1714;
+  --panel:#16211D;
+  --panel-2:#1E2B26;
+  --rule:#2C3B34;
+  --rule-soft:#233029;
+  --text:#E7E4D8;
+  --text-2:#9BA79F;
+  --text-3:#6E7B73;
+  --brass:#D3A455;
+  --brass-soft:#3A2F1A;
+  --btn-bg:#D3A455;
+  --btn-fg:#14201C;
+
+  --t-brown:#C79066;
+  --t-lightblue:#79CBEC;
+  --t-pink:#EE83B8;
+  --t-orange:#F0A455;
+  --t-red:#F0776C;
+  --t-yellow:#DFC64C;
+  --t-green:#54C486;
+  --t-darkblue:#63ACE8;
+  --t-rail:#BCC0B9;
+  --t-util:#A2C7D5;
+  --p1:#4FB3C2;
+  --p2:#E09750;
+  --good:#57BE83;
+  --warn:#D9AE4A;
+  --bad:#E0715F;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 18px 44px -18px rgba(0,0,0,.85);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--text);
+  font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
+  font-size:var(--step-0);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0;text-wrap:balance}
+.num{font-family:"Roboto Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{
+  font-size:.63rem;letter-spacing:.16em;text-transform:uppercase;
+  font-weight:700;color:var(--text-3);
+}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* ============ SHELL ============ */
+.wrap{max-width:1500px;margin:0 auto;padding:0 clamp(12px,2.4vw,32px) 80px}
+
+/* masthead */
+.masthead{
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px 28px;
+  padding:34px 0 18px;border-bottom:1px solid var(--rule);
+  margin-bottom:22px;
+}
+.masthead h1{
+  font-family:"Bodoni Moda",Georgia,serif;
+  font-weight:700;font-size:var(--step-4);line-height:.94;letter-spacing:-.015em;
+}
+.masthead h1 em{font-style:italic;font-weight:400;color:var(--brass)}
+.tagline{color:var(--text-2);max-width:44ch;font-size:var(--step-0);margin-top:8px}
+.masthead .spacer{flex:1}
+.themebtn{
+  background:transparent;border:1px solid var(--rule);color:var(--text-2);
+  border-radius:var(--r);padding:7px 12px;font-size:var(--step--1);font-weight:600;
+}
+.themebtn:hover{border-color:var(--brass);color:var(--brass)}
+
+/* section heads */
+.sechead{
+  display:flex;align-items:baseline;gap:14px;margin:34px 0 14px;
+  border-bottom:1px solid var(--rule-soft);padding-bottom:8px;
+}
+.sechead h2{font-family:"Bodoni Moda",Georgia,serif;font-size:var(--step-2);font-weight:600}
+.sechead p{margin:0;color:var(--text-3);font-size:var(--step--1)}
+
+/* ============ DEED CARDS (strategy setup) ============ */
+.setup{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,1.6vw,22px)}
+@media (max-width:900px){.setup{grid-template-columns:1fr}}
+
+.deed{
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden;
+  border-top:4px solid var(--pc);
+}
+.deed[data-p="1"]{--pc:var(--p1)}
+.deed[data-p="2"]{--pc:var(--p2)}
+.deed-head{
+  padding:14px 18px 12px;border-bottom:1px solid var(--rule-soft);
+  display:flex;align-items:center;gap:10px;background:var(--panel-2);
+}
+.token-dot{
+  width:22px;height:22px;border-radius:50%;background:var(--pc);
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:.7rem;
+  flex:none;box-shadow:inset 0 -2px 4px rgba(0,0,0,.25);
+}
+.deed-head h3{font-size:var(--step-1);font-weight:700;letter-spacing:-.01em}
+.deed-head .pnick{color:var(--text-3);font-size:var(--step--1);font-weight:500}
+.deed-body{padding:6px 18px 18px;display:flex;flex-direction:column;gap:2px}
+
+.field{padding:13px 0;border-bottom:1px dashed var(--rule-soft)}
+.field:last-child{border-bottom:0}
+.field > label,.field > .flabel{display:block;margin-bottom:7px}
+.flabel{font-size:.63rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--text-3)}
+.fhint{font-size:var(--step--1);color:var(--text-3);margin-top:6px;line-height:1.4}
+
+select,input[type=number],input[type=text]{
+  width:100%;font:inherit;font-size:var(--step-0);
+  background:var(--ground);color:var(--text);
+  border:1px solid var(--rule);border-radius:var(--r);padding:8px 10px;
+}
+select:hover,input:hover{border-color:var(--text-3)}
+
+/* color group chip picker */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--rule);background:var(--ground);color:var(--text-2);
+  border-radius:999px;padding:5px 11px 5px 7px;font-size:var(--step--1);font-weight:600;
+  transition:background .12s,border-color .12s,color .12s;
+}
+.chip .sw{width:11px;height:11px;border-radius:2px;background:var(--sw);border:1px solid rgba(0,0,0,.28);flex:none}
+.chip[aria-pressed="true"]{
+  background:var(--pc);border-color:var(--pc);color:#fff;
+}
+.deed[data-p="1"] .chip[aria-pressed="true"]{box-shadow:0 0 0 3px color-mix(in srgb,var(--p1) 18%,transparent)}
+.deed[data-p="2"] .chip[aria-pressed="true"]{box-shadow:0 0 0 3px color-mix(in srgb,var(--p2) 18%,transparent)}
+
+/* segmented control for house target */
+.seg{display:flex;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.seg button{
+  flex:1;background:var(--ground);border:0;border-right:1px solid var(--rule);
+  padding:9px 4px;font-size:var(--step--1);font-weight:700;color:var(--text-2);
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--pc);color:#fff}
+.seg .bi{display:flex;gap:2px;align-items:flex-end;height:11px}
+.hicon{width:6px;height:6px;background:#2E8B57;border:1px solid rgba(0,0,0,.4);border-radius:1px}
+.seg button[aria-pressed="true"] .hicon{background:#BFEBCF;border-color:rgba(0,0,0,.25)}
+.hotelicon{width:14px;height:8px;background:#C0392B;border:1px solid rgba(0,0,0,.4);border-radius:1px}
+.seg button[aria-pressed="true"] .hotelicon{background:#F5C6BF}
+
+/* ============ RUN BAR ============ */
+.runbar{
+  margin-top:22px;background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
+  box-shadow:var(--shadow);padding:16px 18px;
+  display:flex;flex-wrap:wrap;gap:16px 22px;align-items:flex-end;
+}
+.runbar .ctl{min-width:104px}
+.runbar .ctl.wide{min-width:160px}
+.runbar .grow{flex:1}
+.btn{
+  border:1px solid var(--btn-bg);background:var(--btn-bg);color:var(--btn-fg);
+  border-radius:var(--r);padding:11px 20px;font-weight:700;font-size:var(--step-0);
+  letter-spacing:.02em;box-shadow:var(--shadow);
+}
+.btn:hover{filter:brightness(1.12)}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--rule)}
+.btn.ghost:hover{border-color:var(--brass);color:var(--brass);filter:none}
+.btn:disabled{opacity:.42;cursor:not-allowed;filter:none}
+.btn.tiny{padding:6px 11px;font-size:var(--step--1);font-weight:600;box-shadow:none}
+
+/* Settings that change what is being simulated, or how it is shown, are
+   fenced into named groups so they read apart from the plain run inputs. */
+.fgroup{
+  flex:1 1 260px;min-width:0;
+  margin:0;padding:2px 14px 12px;
+  border:1px solid var(--rule);border-radius:var(--r);
+  background:var(--ground);
+}
+.fgroup.snug{flex:0 0 auto}
+.fgroup > legend{
+  padding:0 7px;margin-left:-3px;
+  font-size:.63rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+  color:var(--text-2);
+}
+.fgroup .frow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.fgroup .switch span{font-weight:500}
+.switch{display:inline-flex;align-items:center;gap:9px;font-size:var(--step-0);font-weight:600;cursor:pointer}
+.switch input{appearance:none;width:38px;height:21px;border-radius:999px;background:var(--rule);position:relative;transition:background .15s;margin:0;cursor:pointer;flex:none}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--panel);transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.switch input:checked{background:var(--good)}
+.switch input:checked::after{transform:translateX(17px)}
+
+.progress{height:5px;background:var(--panel-2);border-radius:999px;overflow:hidden;margin-top:12px;flex-basis:100%;display:none}
+.progress.on{display:block}
+.progress i{display:block;height:100%;background:var(--brass);width:0;transition:width .1s linear}
+
+/* ============ TABLE LAYOUT: board + rail ============ */
+.stage{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:clamp(14px,1.8vw,26px);align-items:start;margin-top:20px}
+@media (max-width:1080px){.stage{grid-template-columns:1fr}}
+
+/* ---- BOARD ---- */
+.boardwrap{
+  background:var(--board-field);
+  border:1px solid var(--board-line);
+  border-radius:var(--r);
+  padding:clamp(4px,.6vw,9px);
+  box-shadow:var(--shadow-lift);
+  container-type:inline-size;
+}
+.board{
+  aspect-ratio:1/1;display:grid;
+  grid-template-columns:1.42fr repeat(9,1fr) 1.42fr;
+  grid-template-rows:1.42fr repeat(9,1fr) 1.42fr;
+  gap:0;
+}
+.sq{
+  position:relative;background:var(--board-space);
+  border:.5px solid var(--board-line);
+  color:var(--board-text);
+  display:flex;flex-direction:column;
+  font-family:"Archivo Narrow","Arial Narrow",sans-serif;
+  overflow:hidden;
+  min-width:0;min-height:0;
+}
+.sq.corner{background:var(--board-field);align-items:center;justify-content:center;text-align:center;padding:2cqw}
+.sq .bar{height:22%;border-bottom:.5px solid var(--board-line);background:var(--gc);flex:none}
+.sq .nm{
+  flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:max(5.5px,1.3cqw);line-height:1.05;font-weight:600;padding:1.5% 4%;
+  text-transform:uppercase;letter-spacing:.01em;
+}
+.sq .pr{font-size:max(5.5px,1.25cqw);text-align:center;padding-bottom:2%;font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums;opacity:.82}
+.sq.corner .nm{font-size:max(6px,1.5cqw);font-weight:700;padding:0}
+.sq .glyph{font-size:3.4cqw;line-height:1}
+/* rotate side labels */
+.sq.top .nm,.sq.top .pr{transform:none}
+.sq.left{flex-direction:row-reverse}
+.sq.left .bar{height:auto;width:22%;border-bottom:0;border-left:.5px solid var(--board-line)}
+.sq.left .stack{flex:1;display:flex;flex-direction:column;min-width:0}
+.sq.right{flex-direction:row}
+.sq.right .bar{height:auto;width:22%;border-bottom:0;border-right:.5px solid var(--board-line)}
+.sq.right .stack{flex:1;display:flex;flex-direction:column;min-width:0}
+.sq.top{flex-direction:column-reverse}
+.sq.top .bar{border-bottom:0;border-top:.5px solid var(--board-line)}
+
+/* ownership tint */
+.sq .own{
+  position:absolute;inset:0;pointer-events:none;
+  background:var(--oc);opacity:0;transition:opacity .2s;
+}
+.sq[data-own="1"] .own{opacity:.16;--oc:var(--p1)}
+.sq[data-own="2"] .own{opacity:.16;--oc:var(--p2)}
+.sq .ownbar{position:absolute;top:0;bottom:0;right:0;width:0;background:var(--oc);transition:width .2s}
+.sq[data-own="1"] .ownbar,.sq[data-own="2"] .ownbar{width:7%}
+.sq[data-own="1"] .ownbar{--oc:var(--p1)}
+.sq[data-own="2"] .ownbar{--oc:var(--p2)}
+.sq[data-mortgaged="1"]{background:repeating-linear-gradient(45deg,var(--board-space),var(--board-space) 3px,#D8D2BE 3px,#D8D2BE 6px)}
+
+/* buildings */
+.builds{position:absolute;top:0;left:0;right:0;height:22%;display:flex;align-items:center;justify-content:center;gap:3%;z-index:3}
+.sq.left .builds,.sq.right .builds{top:0;bottom:0;height:auto;width:22%;flex-direction:column}
+.sq.left .builds{right:0;left:auto}
+.sq.right .builds{left:0;right:auto}
+.sq.top .builds{top:auto;bottom:0}
+.bhouse{width:16%;aspect-ratio:1;background:#2E8B57;border:.5px solid #12301F;border-radius:.5px}
+.sq.left .bhouse,.sq.right .bhouse{width:44%;height:auto;aspect-ratio:1}
+.bhotel{width:44%;height:52%;background:#C0392B;border:.5px solid #4A130C;border-radius:.5px}
+
+/* tokens */
+.tokens{position:absolute;bottom:2%;left:0;right:0;display:flex;justify-content:center;gap:4%;z-index:5}
+.sq.corner .tokens{bottom:6%}
+.tk{
+  width:15%;aspect-ratio:1;border-radius:50%;
+  background:var(--tc);border:.5px solid rgba(0,0,0,.55);
+  box-shadow:0 1px 2px rgba(0,0,0,.4), inset 0 -1px 2px rgba(0,0,0,.3);
+  transition:transform .18s;
+}
+.sq.corner .tk{width:11%}
+.tk[data-active="1"]{transform:scale(1.35)}
+
+/* board centre */
+.centre{
+  grid-column:2/11;grid-row:2/11;background:var(--board-field);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1.4cqw;padding:2cqw;text-align:center;
+}
+.centre .logo{
+  font-family:"Bodoni Moda",Georgia,serif;font-weight:700;
+  font-size:4.1cqw;line-height:.9;letter-spacing:-.02em;color:var(--board-text);
+  text-transform:uppercase;
+}
+.centre .logo span{display:block;font-size:1.5cqw;letter-spacing:.34em;font-weight:400;font-style:italic;text-transform:none;margin-top:.5cqw;opacity:.7}
+.dicebox{display:flex;gap:1.2cqw;align-items:center}
+.die{
+  width:5.4cqw;aspect-ratio:1;background:var(--board-space);border:.5px solid var(--board-line);
+  border-radius:.8cqw;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);
+  padding:.9cqw;gap:.25cqw;box-shadow:0 .3cqw .7cqw rgba(0,0,0,.18);
+}
+.pip{border-radius:50%;background:var(--board-line);opacity:0}
+.pip.on{opacity:1}
+.centre .status{font-family:"Archivo Narrow",sans-serif;font-size:1.6cqw;color:var(--board-text);max-width:80%;line-height:1.25;min-height:2.2em}
+.centre .turnpill{
+  font-family:"Roboto Mono",monospace;font-size:1.35cqw;letter-spacing:.1em;
+  background:var(--board-text);color:var(--board-field);padding:.5cqw 1.4cqw;border-radius:999px;
+  text-transform:uppercase;
+}
+.supply{display:flex;gap:2.4cqw;font-family:"Archivo Narrow",sans-serif;font-size:1.4cqw;color:var(--board-text)}
+.supply b{font-family:"Roboto Mono",monospace;font-size:1.9cqw;display:block;line-height:1.1}
+.supply .lab{font-size:1.05cqw;text-transform:uppercase;letter-spacing:.12em;opacity:.7}
+.supply .shortage{color:#A93226;font-weight:700}
+
+/* ---- RAIL ---- */
+.rail{display:flex;flex-direction:column;gap:14px}
+.card{
+  background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.card > h3{
+  padding:10px 14px;border-bottom:1px solid var(--rule-soft);background:var(--panel-2);
+  font-size:.63rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--text-3);
+}
+.card .body{padding:13px 14px}
+
+/* live player stat block */
+.pstat{border-left:4px solid var(--pc)}
+.pstat[data-p="1"]{--pc:var(--p1)}
+.pstat[data-p="2"]{--pc:var(--p2)}
+.pstat .top{display:flex;align-items:center;gap:9px;padding:11px 13px 9px}
+.pstat .top h3{font-size:var(--step-0);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pstat .top .cash{font-family:"Roboto Mono",monospace;font-weight:700;font-size:var(--step-1);color:var(--pc)}
+.pstat.turn{background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 9%,var(--panel)),var(--panel) 60%)}
+/* the doctrine line is words, never money — kept clearly out of the number columns */
+.pstat .doctrine{padding:0 13px 10px;display:flex;gap:8px;align-items:baseline}
+.pstat .dlab{
+  font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  color:var(--text-3);flex:none;padding-top:1px;
+}
+.pstat .dval{font-size:.7rem;line-height:1.35;color:var(--text-2);font-style:italic}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule-soft);border-top:1px solid var(--rule-soft)}
+.metrics div{background:var(--panel);padding:7px 10px}
+.metrics .k{font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);font-weight:700}
+.metrics .v{font-family:"Roboto Mono",monospace;font-size:var(--step-0);font-weight:500}
+.holdings{padding:10px 13px 12px;display:flex;flex-wrap:wrap;gap:4px;border-top:1px solid var(--rule-soft);min-height:40px}
+.hchip{
+  display:inline-flex;align-items:center;gap:4px;font-size:.66rem;font-weight:700;
+  border-radius:2px;padding:2px 6px;background:var(--hc);color:var(--htx);
+  border:1px solid rgba(0,0,0,.22);font-family:"Archivo Narrow",sans-serif;
+  letter-spacing:.02em;
+}
+.hchip.mono{box-shadow:0 0 0 2px var(--brass)}
+.hchip .b{font-family:"Roboto Mono",monospace;font-size:.6rem;opacity:.9}
+.hchip.mtg{opacity:.45;text-decoration:line-through}
+.nothing{color:var(--text-3);font-size:var(--step--1);font-style:italic}
+
+/* key to the deed chips and the board's own markings */
+.legend{display:flex;flex-direction:column;gap:11px}
+.legend > div{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}
+.legend > div > .hchip,.legend > div > .swatchbox{justify-self:start;margin-top:1px}
+.legend p{margin:0;font-size:var(--step--1);color:var(--text-2);line-height:1.4}
+.mono-sym{font-family:"Roboto Mono",monospace}
+.swatchbox{
+  position:relative;display:block;width:44px;height:20px;flex:none;
+  background:var(--board-space);border:.5px solid var(--board-line);border-radius:1px;
+  background-image:linear-gradient(color-mix(in srgb,var(--p1) 16%,transparent),color-mix(in srgb,var(--p1) 16%,transparent));
+}
+.swatchbox .tintbar{position:absolute;top:0;bottom:0;right:0;width:4px;background:var(--p1)}
+
+/* trade ticker */
+.trade{
+  border-top:1px solid var(--rule-soft);padding:11px 13px;font-size:var(--step--1);
+}
+.trade:first-child{border-top:0}
+.trade .thead{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.trade .arrow{color:var(--text-3);font-weight:700}
+.trade .who{font-weight:700}
+.trade .stamp{
+  margin-left:auto;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;font-weight:800;
+  border:1.5px solid currentColor;border-radius:2px;padding:1px 5px;transform:rotate(-3deg);
+}
+.trade .stamp.ok{color:var(--good)}
+.trade .stamp.no{color:var(--bad)}
+.legs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.leg{display:flex;flex-wrap:wrap;gap:3px}
+.legs .swap{color:var(--text-3);font-size:1rem}
+.cashleg{font-family:"Roboto Mono",monospace;font-weight:700;font-size:.68rem;background:var(--brass-soft);color:var(--brass);padding:2px 6px;border-radius:2px;border:1px solid color-mix(in srgb,var(--brass) 40%,transparent)}
+.tradenote{color:var(--text-3);font-size:.66rem;margin-top:6px;font-style:italic}
+
+/* log */
+.logcard{margin-top:14px}
+.log{max-height:420px;overflow-y:auto;padding:0}
+.log li{
+  list-style:none;padding:5px 14px;border-bottom:1px solid var(--rule-soft);
+  font-size:var(--step--1);display:flex;gap:8px;line-height:1.35;
+}
+.log li:last-child{border-bottom:0}
+.log .t{font-family:"Roboto Mono",monospace;color:var(--text-3);font-size:.62rem;flex:none;padding-top:1px;width:44px;text-align:right}
+.log li[data-p="1"] .m{border-left:2px solid var(--p1);padding-left:7px}
+.log li[data-p="2"] .m{border-left:2px solid var(--p2);padding-left:7px}
+.log li.big .m{font-weight:700}
+/* opening balance, and where it landed, annotated onto each player mention */
+.log .cashtag{
+  font-family:"Roboto Mono",monospace;font-size:.6rem;font-weight:400;
+  color:var(--text-3);white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.log li.big .cashtag{font-weight:400}
+.log .cashtag .arrow{opacity:.55;padding:0 1px}
+/* money events are called out so they can be picked out at a glance */
+.log .rt{
+  display:inline-block;font-size:.55rem;letter-spacing:.11em;text-transform:uppercase;
+  font-weight:800;padding:1px 5px;border-radius:2px;margin-right:5px;
+  background:var(--brass-soft);color:var(--brass);vertical-align:1px;
+}
+.log .rt.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.log .rt.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.log .rt.bld{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.log .amt{font-family:"Roboto Mono",monospace;font-weight:700;font-variant-numeric:tabular-nums}
+/* deed and colour-group names carry their own colour, so a line can be
+   placed in the right part of the board without reading the words */
+.log .pname{font-weight:600}
+.log li[data-type="rent"] .m,.log li[data-type="bust"] .m,
+.log li[data-type="raise"] .m{background:color-mix(in srgb,var(--brass) 6%,transparent)}
+.log li[data-type="rent"],.log li[data-type="bust"],.log li[data-type="raise"],
+.log li[data-type="build"]{padding-top:7px;padding-bottom:7px}
+.log ul{margin:0;padding:0}
+
+/* ============ RESULTS ============ */
+.results{display:none;margin-top:8px}
+.results.on{display:block}
+.headline{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;
+  background:var(--rule-soft);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.headline > div{background:var(--panel);padding:16px 18px}
+.headline .k{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);font-weight:700}
+.headline .v{font-family:"Roboto Mono",monospace;font-size:var(--step-3);font-weight:500;line-height:1.15;margin-top:5px}
+.headline .s{font-size:var(--step--1);color:var(--text-2);margin-top:3px}
+.headline .v.p1{color:var(--p1)}
+.headline .v.p2{color:var(--p2)}
+
+.winbar{display:flex;height:34px;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;margin-top:14px;box-shadow:var(--shadow)}
+.winbar div{display:grid;place-items:center;font-family:"Roboto Mono",monospace;font-weight:700;font-size:var(--step-0);color:#fff;transition:flex-basis .4s;white-space:nowrap;overflow:hidden}
+.winbar .w1{background:var(--p1)}
+.winbar .w2{background:var(--p2)}
+.winbar .wd{background:var(--text-3)}
+
+/* Each ledger panel gets the full measure — the colour table alone carries
+   eleven columns and was being squeezed into half the page. */
+.ledgerstack{display:grid;grid-template-columns:1fr;gap:clamp(14px,1.8vw,22px);margin-top:16px}
+
+table{width:100%;border-collapse:collapse;font-size:var(--step--1)}
+.tscroll{overflow-x:auto}
+th{
+  text-align:left;font-size:.58rem;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);
+  font-weight:700;padding:8px 10px;border-bottom:1px solid var(--rule);white-space:nowrap;
+}
+td{padding:7px 10px;border-bottom:1px solid var(--rule-soft);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+td.n{font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--sw);border:1px solid rgba(0,0,0,.3);margin-right:7px;vertical-align:-1px}
+.roibar{position:relative;height:16px;background:var(--panel-2);border-radius:2px;min-width:70px}
+.roibar i{position:absolute;left:0;top:0;bottom:0;background:var(--bc);border-radius:2px}
+.roibar.p1 i{--bc:var(--p1)}
+.roibar.p2 i{--bc:var(--p2)}
+.roival{font-family:"Roboto Mono",monospace;font-weight:700}
+.roival.up{color:var(--good)}
+.roival.dn{color:var(--bad)}
+tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
+.footnote{color:var(--text-3);font-size:var(--step--1);margin-top:12px;max-width:80ch;line-height:1.5}
+.footnote a{color:var(--brass)}
+.badge{display:inline-block;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
+.badge.p1{color:var(--p1)}
+.badge.p2{color:var(--p2)}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <h1>Monopoly <em>Strategy Lab</em></h1>
+      <p class="tagline">Two computer players, official rules, a finite stack of 32 houses. Set their doctrines and run the board until the numbers say who was right.</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="themebtn" id="themebtn">Theme</button>
+  </header>
+
+  <div class="sechead">
+    <h2>The Doctrines</h2>
+    <p>Each player follows a fixed set of rules for buying, building and dealing.</p>
+  </div>
+
+  <div class="setup" id="setup"></div>
+
+  <div class="runbar">
+    <div class="ctl">
+      <span class="flabel">Games</span>
+      <input type="number" id="games" value="1" min="1" max="20000" step="1">
+    </div>
+    <div class="ctl">
+      <span class="flabel">Turn cap</span>
+      <input type="number" id="turncap" value="300" min="20" max="5000" step="10">
+    </div>
+    <div class="ctl">
+      <span class="flabel">Delay (ms)</span>
+      <input type="number" id="delay" value="1000" min="0" max="5000" step="50">
+    </div>
+    <fieldset class="fgroup snug">
+      <legend>Board</legend>
+      <div class="frow">
+        <label class="switch"><input type="checkbox" id="render" checked><span>Visualize play</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="fgroup">
+      <legend>House rules</legend>
+      <div class="frow">
+        <label class="switch"><input type="checkbox" id="ruleAuction" checked><span>Auctions</span></label>
+        <label class="switch"><input type="checkbox" id="ruleFP"><span>Free Parking pot</span></label>
+        <label class="switch"><input type="checkbox" id="ruleDoubleGo"><span>Double on GO</span></label>
+        <button class="btn ghost tiny" id="ruleReset" type="button">Reset to official</button>
+      </div>
+    </fieldset>
+    <div style="display:flex;gap:9px;align-items:center">
+      <button class="btn" id="run">Run</button>
+      <button class="btn ghost" id="pause" disabled>Pause</button>
+      <button class="btn ghost" id="reset" disabled>Reset</button>
+    </div>
+    <div class="progress" id="progress"><i></i></div>
+  </div>
+
+  <div class="stage">
+    <div class="boardwrap">
+      <div class="board" id="board"></div>
+    </div>
+    <div class="rail">
+      <div class="card pstat" data-p="1" id="live1"></div>
+      <div class="card pstat" data-p="2" id="live2"></div>
+      <div class="card">
+        <h3>Deal Table &mdash; last offers</h3>
+        <div id="trades"><div class="trade"><span class="nothing">No offers yet.</span></div></div>
+      </div>
+      <div class="card">
+        <h3>Key</h3>
+        <div class="body legend">
+          <div>
+            <span class="hchip" style="--hc:var(--g-orange);--htx:#fff">Tennessee<span class="b"> ▪▪▪</span></span>
+            <p>Squares are houses standing on the deed. <span class="mono-sym">⌂</span> in their place is a hotel.</p>
+          </div>
+          <div>
+            <span class="hchip mono" style="--hc:var(--g-red);--htx:#fff">Kentucky</span>
+            <p>Gold ring: part of a complete colour set, so it can be built on and charges double rent even bare.</p>
+          </div>
+          <div>
+            <span class="hchip mtg" style="--hc:var(--g-green);--htx:#fff">Pacific</span>
+            <p>Struck through and faded: mortgaged. Raised half the printed price under pressure and earns no rent until bought back. Several at once means that player is in trouble.</p>
+          </div>
+          <div>
+            <span class="swatchbox"><i class="tintbar"></i></span>
+            <p>On the board, a deed is tinted and edged in its owner's colour, and hatched if mortgaged.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card logcard">
+    <h3>Table Log</h3>
+    <ul class="log" id="log"></ul>
+  </div>
+
+  <section class="results" id="results">
+    <div class="sechead">
+      <h2>The Ledger</h2>
+      <p id="ledgersub"></p>
+    </div>
+    <div class="headline" id="headline"></div>
+    <div class="winbar" id="winbar"></div>
+
+    <div class="ledgerstack">
+      <div class="card">
+        <h3>Return on colour &mdash; rent earned per dollar committed</h3>
+        <div class="body tscroll" id="grouproi"></div>
+      </div>
+      <div class="card">
+        <h3>Return on building &mdash; the 3-house question</h3>
+        <div class="body tscroll" id="buildroi"></div>
+      </div>
+    </div>
+
+    <div class="ledgerstack">
+      <div class="card">
+        <h3>Deal table performance</h3>
+        <div class="body tscroll" id="tradestats"></div>
+      </div>
+      <div class="card">
+        <h3>Game shape</h3>
+        <div class="body tscroll" id="shapestats"></div>
+      </div>
+    </div>
+
+    <p class="footnote" id="method"></p>
+  </section>
+</div>
+
+<script>
+/* ==================================================================
+   MONOPOLY STRATEGY LAB
+   Part 1 — data, RNG, rules engine primitives
+   ================================================================== */
+
+/* ---------- deterministic RNG (mulberry32) ---------- */
+function makeRng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- colour groups ---------- */
+const GROUPS = {
+  brown:     {name:"Brown",      short:"BRN", css:"--g-brown",     members:[1,3],       house:50,  order:1},
+  lightblue: {name:"Light Blue", short:"LBL", css:"--g-lightblue", members:[6,8,9],     house:50,  order:2},
+  pink:      {name:"Pink",       short:"PNK", css:"--g-pink",      members:[11,13,14],  house:100, order:3},
+  orange:    {name:"Orange",     short:"ORG", css:"--g-orange",    members:[16,18,19],  house:100, order:4},
+  red:       {name:"Red",        short:"RED", css:"--g-red",       members:[21,23,24],  house:150, order:5},
+  yellow:    {name:"Yellow",     short:"YEL", css:"--g-yellow",    members:[26,27,29],  house:150, order:6},
+  green:     {name:"Green",      short:"GRN", css:"--g-green",     members:[31,32,34],  house:200, order:7},
+  darkblue:  {name:"Dark Blue",  short:"DBL", css:"--g-darkblue",  members:[37,39],     house:200, order:8},
+  rail:      {name:"Railroads",  short:"RR",  css:"--g-rail",      members:[5,15,25,35],house:0,   order:9},
+  util:      {name:"Utilities",  short:"UTL", css:"--g-util",      members:[12,28],     house:0,   order:10}
+};
+const GROUP_KEYS = Object.keys(GROUPS);
+const PICKABLE = ["brown","lightblue","pink","orange","red","yellow","green","darkblue","rail","util"];
+
+/* ---------- the 40 spaces ----------
+   type: go|prop|rail|util|chest|chance|tax|jail|free|gotojail
+   rent array: [base,1h,2h,3h,4h,hotel]                            */
+const BOARD = [
+  {n:"Go",                type:"go"},
+  {n:"Mediterranean Ave", type:"prop", g:"brown",     price:60,  rent:[2,10,30,90,160,250]},
+  {n:"Community Chest",   type:"chest"},
+  {n:"Baltic Ave",        type:"prop", g:"brown",     price:60,  rent:[4,20,60,180,320,450]},
+  {n:"Income Tax",        type:"tax",  tax:"income"},
+  {n:"Reading RR",        type:"rail", g:"rail",      price:200},
+  {n:"Oriental Ave",      type:"prop", g:"lightblue", price:100, rent:[6,30,90,270,400,550]},
+  {n:"Chance",            type:"chance"},
+  {n:"Vermont Ave",       type:"prop", g:"lightblue", price:100, rent:[6,30,90,270,400,550]},
+  {n:"Connecticut Ave",   type:"prop", g:"lightblue", price:120, rent:[8,40,100,300,450,600]},
+  {n:"Jail",              type:"jail"},
+  {n:"St. Charles Pl",    type:"prop", g:"pink",      price:140, rent:[10,50,150,450,625,750]},
+  {n:"Electric Company",  type:"util", g:"util",      price:150},
+  {n:"States Ave",        type:"prop", g:"pink",      price:140, rent:[10,50,150,450,625,750]},
+  {n:"Virginia Ave",      type:"prop", g:"pink",      price:160, rent:[12,60,180,500,700,900]},
+  {n:"Pennsylvania RR",   type:"rail", g:"rail",      price:200},
+  {n:"St. James Pl",      type:"prop", g:"orange",    price:180, rent:[14,70,200,550,750,950]},
+  {n:"Community Chest",   type:"chest"},
+  {n:"Tennessee Ave",     type:"prop", g:"orange",    price:180, rent:[14,70,200,550,750,950]},
+  {n:"New York Ave",      type:"prop", g:"orange",    price:200, rent:[16,80,220,600,800,1000]},
+  {n:"Free Parking",      type:"free"},
+  {n:"Kentucky Ave",      type:"prop", g:"red",       price:220, rent:[18,90,250,700,875,1050]},
+  {n:"Chance",            type:"chance"},
+  {n:"Indiana Ave",       type:"prop", g:"red",       price:220, rent:[18,90,250,700,875,1050]},
+  {n:"Illinois Ave",      type:"prop", g:"red",       price:240, rent:[20,100,300,750,925,1100]},
+  {n:"B. & O. RR",        type:"rail", g:"rail",      price:200},
+  {n:"Atlantic Ave",      type:"prop", g:"yellow",    price:260, rent:[22,110,330,800,975,1150]},
+  {n:"Ventnor Ave",       type:"prop", g:"yellow",    price:260, rent:[22,110,330,800,975,1150]},
+  {n:"Water Works",       type:"util", g:"util",      price:150},
+  {n:"Marvin Gardens",    type:"prop", g:"yellow",    price:280, rent:[24,120,360,850,1025,1200]},
+  {n:"Go To Jail",        type:"gotojail"},
+  {n:"Pacific Ave",       type:"prop", g:"green",     price:300, rent:[26,130,390,900,1100,1275]},
+  {n:"North Carolina Ave",type:"prop", g:"green",     price:300, rent:[26,130,390,900,1100,1275]},
+  {n:"Community Chest",   type:"chest"},
+  {n:"Pennsylvania Ave",  type:"prop", g:"green",     price:320, rent:[28,150,450,1000,1200,1400]},
+  {n:"Short Line",        type:"rail", g:"rail",      price:200},
+  {n:"Chance",            type:"chance"},
+  {n:"Park Place",        type:"prop", g:"darkblue",  price:350, rent:[35,175,500,1100,1300,1500]},
+  {n:"Luxury Tax",        type:"tax",  tax:"luxury"},
+  {n:"Boardwalk",         type:"prop", g:"darkblue",  price:400, rent:[50,200,600,1400,1700,2000]}
+];
+BOARD.forEach((s,i)=>{ s.i=i; if(s.price) s.mortgage = s.price/2; });
+const OWNABLE = BOARD.filter(s=>s.price).map(s=>s.i);
+
+/* ---------- cards ---------- */
+const CHANCE = [
+  {t:"Advance to Go",                         a:{move:0,collectGo:false,pay:200}},
+  {t:"Advance to Illinois Ave",               a:{move:24}},
+  {t:"Advance to St. Charles Place",          a:{move:11}},
+  {t:"Advance to nearest Utility",            a:{nearest:"util"}},
+  {t:"Advance to nearest Railroad",           a:{nearest:"rail"}},
+  {t:"Advance to nearest Railroad",           a:{nearest:"rail"}},
+  {t:"Bank pays you a $50 dividend",          a:{pay:50}},
+  {t:"Get Out of Jail Free",                  a:{gooj:true}},
+  {t:"Go back three spaces",                  a:{back:3}},
+  {t:"Go directly to Jail",                   a:{jail:true}},
+  {t:"General repairs: $25/house, $100/hotel",a:{repairs:[25,100]}},
+  {t:"Speeding fine of $15",                  a:{pay:-15}},
+  {t:"Take a trip to Reading Railroad",       a:{move:5}},
+  {t:"Take a walk on the Boardwalk",          a:{move:39}},
+  {t:"Elected Chairman: pay each player $50", a:{eachPay:50}},
+  {t:"Your building loan matures: collect $150",a:{pay:150}}
+];
+const CHEST = [
+  {t:"Advance to Go",                          a:{move:0,pay:200}},
+  {t:"Bank error in your favour: collect $200",a:{pay:200}},
+  {t:"Doctor's fee: pay $50",                  a:{pay:-50}},
+  {t:"From sale of stock you get $50",         a:{pay:50}},
+  {t:"Get Out of Jail Free",                   a:{gooj:true}},
+  {t:"Go directly to Jail",                    a:{jail:true}},
+  {t:"Grand Opera night: collect $50 from each",a:{eachCollect:50}},
+  {t:"Holiday fund matures: receive $100",     a:{pay:100}},
+  {t:"Income tax refund: collect $20",         a:{pay:20}},
+  {t:"It is your birthday: collect $10 each",  a:{eachCollect:10}},
+  {t:"Life insurance matures: collect $100",   a:{pay:100}},
+  {t:"Hospital fees: pay $100",                a:{pay:-100}},
+  {t:"School fees: pay $50",                   a:{pay:-50}},
+  {t:"Receive $25 consultancy fee",            a:{pay:25}},
+  {t:"Street repairs: $40/house, $115/hotel",  a:{repairs:[40,115]}},
+  {t:"Second prize in a beauty contest: $10",  a:{pay:10}}
+];
+
+/* ---------- strategy catalogues ---------- */
+const TRADE_STRATS = {
+  never: {
+    name:"Never Trade",
+    blurb:"Refuses every offer and makes none. The control group — pure dice and cash."
+  },
+  fair: {
+    name:"Fair Value",
+    blurb:"Only proposes and accepts deals where the rent-value it gains exceeds the rent-value it gives up. Conservative, rarely fooled."
+  },
+  aggressive: {
+    name:"Aggressive Acquirer",
+    blurb:"Chases its target colours hard and will pay well over book value to complete a set, and accepts thin deals to keep dealing. Tests whether tempo beats liquidity."
+  },
+  blocker: {
+    name:"Set Blocker",
+    blurb:"Never hands over a card that completes an opponent's monopoly, and spends to buy up the specific cards that block one."
+  },
+  hoarder: {
+    name:"Cash-Leverage",
+    blurb:"Keeps a war chest, never pays cash in a trade, and demands cash on top. Hunts opponents who are short on money."
+  },
+  winwin: {
+    name:"Mutual Monopoly",
+    blurb:"Seeks the two-for-two deal where both players walk away with a complete colour set, then out-builds the opponent."
+  }
+};
+const ACQUIRE_STRATS = {
+  monopoly:  {name:"Monopoly Hunter", blurb:"Buys only what builds toward a complete colour set; walks away from cards an opponent has already split."},
+  collector: {name:"Everything Buyer",blurb:"Buys every unowned property it can afford, monopoly or not."}
+};
+const HOUSE_LABELS = {1:"1 house",2:"2 houses",3:"3 houses",4:"4 houses",5:"Hotel"};
+
+/* ---------- helpers ---------- */
+const money = n => (n<0? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString("en-US");
+const pct = n => (n*100).toFixed(1) + "%";
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+
+/* ==================================================================
+   GAME STATE
+   ================================================================== */
+function shuffled(arr, rng){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+/* Per-colour ledger.
+   out        every dollar committed to the colour — deeds, auction prices,
+              house money, unmortgage fees, cash handed over in trades.
+              Only ever grows, so a return figure can never blow up.
+   rent       rent cheques received on the colour.
+   sales      capital recovered — mortgages, buildings sold back, and cash
+              taken in on trades of those deeds.
+   build*     the same three figures restricted to house/hotel money.      */
+function blankLedger(){
+  const l = {};
+  for(const k of GROUP_KEYS)
+    l[k] = {out:0, rent:0, sales:0, tradeIn:0, tradeOut:0,
+            buildOut:0, buildRent:0, buildSales:0};
+  return l;
+}
+
+function newGame(cfg, seed){
+  const rng = makeRng(seed);
+  const g = {
+    cfg, seed, rng,
+    turn:0, cur:0, over:false, winner:null, reason:"",
+    houses:32, hotels:12,
+    pot:0,                              // free parking pot
+    shortageTurns:0,
+    chance: shuffled(CHANCE.map((c,i)=>i), rng), chanceI:0,
+    chest:  shuffled(CHEST.map((c,i)=>i), rng),  chestI:0,
+    owner:  new Array(40).fill(-1),
+    level:  new Array(40).fill(0),      // 0-4 houses, 5 = hotel
+    mortgaged: new Array(40).fill(false),
+    moved:  new Array(40).fill(-99),    // turn a deed last changed hands in a trade
+    players:[0,1].map(i=>({
+      id:i+1, idx:i,
+      cash:1500, pos:0, jail:false, jailTurns:0, gooj:0,
+      bankrupt:false, doubles:0,
+      cfg: cfg.players[i],
+      ledger: blankLedger(),
+      stats:{ rentPaid:0, rentGot:0, tradesProposed:0, tradesAccepted:0,
+              tradesReceived:0, tradesTaken:0, bought:0, auctionsWon:0,
+              housesBuilt:0, hotelsBuilt:0, timesJailed:0, maxNet:1500,
+              setsPeak:0, shortageCaused:0 }
+    })),
+    events:[]
+  };
+  return g;
+}
+
+const other = (g,p)=> g.players[1-p.idx];
+
+function ownedIn(g,p,grp){
+  let c=0; for(const i of GROUPS[grp].members) if(g.owner[i]===p.idx) c++;
+  return c;
+}
+function hasMonopoly(g,p,grp){ return ownedIn(g,p,grp) === GROUPS[grp].members.length; }
+function myProps(g,p){ return OWNABLE.filter(i=>g.owner[i]===p.idx); }
+
+function netWorth(g,p){
+  let n = p.cash;
+  for(const i of myProps(g,p)){
+    const s = BOARD[i];
+    n += g.mortgaged[i] ? 0 : s.price;
+    if(g.level[i]>0){
+      const hc = GROUPS[s.g].house;
+      n += (g.level[i]===5 ? 5 : g.level[i]) * hc;
+    }
+  }
+  return n;
+}
+
+/* ---------- rent ---------- */
+function rentFor(g, i, dice){
+  const s = BOARD[i];
+  if(g.mortgaged[i]) return 0;
+  const o = g.players[g.owner[i]];
+  if(s.type==="rail"){
+    const c = ownedIn(g,o,"rail");
+    return [0,25,50,100,200][c];
+  }
+  if(s.type==="util"){
+    const c = ownedIn(g,o,"util");
+    return dice * (c===2 ? 10 : 4);
+  }
+  const lvl = g.level[i];
+  if(lvl===0) return hasMonopoly(g,o,s.g) ? s.rent[0]*2 : s.rent[0];
+  return s.rent[lvl];
+}
+/* base rent as if unimproved (for isolating the return on buildings) */
+function unimprovedRent(g,i){
+  const s = BOARD[i];
+  if(s.type!=="prop") return rentFor(g,i,7);
+  const o = g.players[g.owner[i]];
+  return hasMonopoly(g,o,s.g) ? s.rent[0]*2 : s.rent[0];
+}
+
+/* ---------- logging ---------- */
+/* Cash reported in the log is the balance BEFORE the event settled.
+   Any block that moves money before it logs calls mark() first to stamp the
+   opening balances; ev() consumes that stamp. Where nothing was marked, no
+   money moved during the event and the current balance is already the
+   "before" figure.                                                        */
+const cashNow = g => [g.players[0].cash, g.players[1].cash];
+function mark(g){ g._pre = cashNow(g); }
+/* `before` may be passed explicitly. That matters wherever paying can cascade
+   into raising cash, because the nested event would otherwise consume the
+   outer stamp and the outer line would report no movement at all. */
+function ev(g, type, msg, p, big, before){
+  const now = cashNow(g);
+  const opening = before || g._pre || now;
+  if(!before) g._pre = null;
+  g.events.push({type, msg, p: p?p.id:0, turn:g.turn, big:!!big,
+                 cash: opening.map(Math.round), after: now.map(Math.round)});
+}
+
+/* ---------- cash movement with ledger attribution ---------- */
+function payBank(g,p,amt){ p.cash -= amt; }
+function fromBank(g,p,amt){ p.cash += amt; }
+
+/* ==================================================================
+   Part 2 — valuation, decisions, trading, the turn loop
+   ================================================================== */
+
+/* Long-run share of landings per space (%), the standard Monopoly
+   steady-state distribution including the Jail/Chance/Chest pulls.
+   This is what makes Orange and Red genuinely valuable and Dark Blue
+   expensive-but-rare, so every decision below is priced off it.      */
+const FREQ = [3.10,2.14,1.89,2.18,2.32,2.94,2.34,0.87,2.36,2.33,
+              5.93,2.77,2.61,2.18,2.45,2.92,2.86,2.60,2.94,3.06,
+              2.88,2.87,1.04,2.72,3.18,3.06,2.65,2.61,2.81,2.54,
+              0.00,2.67,2.62,2.40,2.48,2.16,0.86,2.17,2.16,2.65];
+
+const HORIZON = 45;   // opponent turns of rent a purchase is priced against
+
+function reserveFor(g,p){
+  let r = 110;
+  if(p.cfg.trade==="hoarder") r += 320;
+  // keep enough to walk onto the opponent's worst square and still stand up.
+  // Selling houses back costs half their price, so a thin cushion is far more
+  // expensive than a turn of slower building.
+  let worst = 0;
+  for(const i of myProps(g, other(g,p))) worst = Math.max(worst, rentFor(g,i,7));
+  r += Math.min(worst, 800);
+  return r;
+}
+
+/* Expected lifetime rent a property will earn its holder, priced off
+   landing frequency, that player's target house level, and how likely
+   they are to end up holding the whole colour. Raw units — see nv().  */
+function rawValue(g,p,i){
+  const s = BOARD[i], grp = s.g;
+  const f = FREQ[i]/100;
+  const total = GROUPS[grp].members.length;
+  const mineNow = ownedIn(g,p,grp);
+  const mine = g.owner[i]===p.idx ? mineNow : mineNow + 1;  // as if held
+  const opp = other(g,p);
+  const oppOwns = ownedIn(g,opp,grp) - (g.owner[i]===opp.idx ? 1 : 0);
+  let expected;
+
+  if(s.type==="prop"){
+    const completes = mine === total;
+    const stillNeeded = total - mine;
+    // chance of eventually assembling the set
+    let pMono = completes ? 1 : (oppOwns>0 ? 0.10 : 0.55/stillNeeded);
+    if(p.cfg.trade!=="never" && !completes) pMono += 0.15;
+    pMono = clamp(pMono,0,1);
+    const tgt = clamp(p.cfg.houseTarget,1,5);
+    const devRent = s.rent[tgt];
+    const soloRent = s.rent[0];
+    expected = f * (pMono*devRent + (1-pMono)*soloRent);
+  } else if(s.type==="rail"){
+    expected = f * [0,25,50,100,200][clamp(mine,0,4)];
+  } else {
+    expected = f * 7 * (mine===2 ? 10 : 4);
+  }
+
+  let v = expected * HORIZON;
+
+  // building capital the plan actually requires is a real cost
+  if(s.type==="prop" && mine===total){
+    const tgt = clamp(p.cfg.houseTarget,1,5);
+    v -= GROUPS[grp].house * (tgt===5?5:tgt) * 0.45;
+  }
+
+  // the one doctrine multiplier that belongs in raw units
+  if(p.cfg.priority.includes(grp)) v *= 1.85;
+  return Math.max(v, 0);
+}
+function isDeadCard(g,p,i){
+  const s = BOARD[i];
+  if(s.type !== "prop") return false;
+  const grp = s.g, total = GROUPS[grp].members.length;
+  const mineNow = ownedIn(g,p,grp);
+  const mine = g.owner[i]===p.idx ? mineNow : mineNow + 1;
+  const opp = other(g,p);
+  const oppOwns = ownedIn(g,opp,grp) - (g.owner[i]===opp.idx ? 1 : 0);
+  return oppOwns > 0 && mine < total;
+}
+
+/* ------------------------------------------------------------------
+   Normalised value.
+
+   valueOf answers "how much rent will this eventually earn me", which
+   scales with how many houses a doctrine intends to build. Left raw, a
+   hotel-builder would value every deed on the board at three times what
+   a one-house builder does, and would then hand over absurd sums of cash
+   in trades and auctions purely as an artefact of its own yardstick.
+
+   So each player is rescaled: whatever their doctrine, an average deed on
+   this board is worth roughly its printed price to them. Their relative
+   preferences — orange over green, a set-completer over a dead card — all
+   survive intact. Only the inflation goes.
+   ------------------------------------------------------------------ */
+function scaleFor(g,pl){
+  if(pl._scaleAt === g.turn) return pl._scale;
+  let s = 0;
+  for(const i of OWNABLE) s += rawValue(g,pl,i)/BOARD[i].price;
+  pl._scale = Math.max(0.3, s/OWNABLE.length);
+  pl._scaleAt = g.turn;
+  return pl._scale;
+}
+/* Every decision that weighs value against dollars uses this. Raw value is
+   rescaled into dollars, and only then does the acquisition doctrine apply
+   its floors — so "an average deed is worth about its price" holds for all
+   doctrines, and the floors mean what they say.                          */
+function nv(g,pl,i){
+  const s = BOARD[i];
+  let v = rawValue(g,pl,i)/scaleFor(g,pl);
+  if(pl.cfg.acquire === "monopoly"){
+    if(isDeadCard(g,pl,i)){
+      // a card that can never become a set: worth only its nuisance value
+      return Math.max(v*0.50, s.price*0.55);
+    }
+    const grp = s.g;
+    if(s.type === "prop" && ownedIn(g,pl,grp) >= GROUPS[grp].members.length - 1) v *= 1.28;
+    return Math.max(v, s.price*0.98);              // still worth owning
+  }
+  return Math.max(v, s.price*1.10);                // everything buyer
+}
+
+/* value of prying a card out of the opponent's hands */
+function denialValue(g,p,i){
+  const s = BOARD[i];
+  if(s.type!=="prop") return 0;
+  const opp = other(g,p);
+  if(g.owner[i]!==opp.idx) return 0;
+  if(!hasMonopoly(g,opp,s.g)) return 0;
+  const f = FREQ[i]/100;
+  const lvl = clamp(opp.cfg.houseTarget,1,5);
+  return f * s.rent[lvl] * HORIZON * 0.55 / scaleFor(g,p);
+}
+
+function completesFor(g,pl,i){
+  const grp = BOARD[i].g;
+  return ownedIn(g,pl,grp) === GROUPS[grp].members.length - 1;
+}
+function groupClear(g,i){    // no buildings anywhere in the colour
+  const grp = BOARD[i].g;
+  return !GROUPS[grp].members.some(m=>g.level[m]>0);
+}
+
+/* ---------- buying from the bank ---------- */
+function wantsToBuy(g,p,i){
+  const s = BOARD[i];
+  if(p.cash < s.price) return false;
+  const v = nv(g,p,i);
+  const res = reserveFor(g,p);
+  if(p.cash - s.price < res && v < s.price*1.9) return false;
+  return v >= s.price*0.92;
+}
+function maxBid(g,p,i){
+  const v = nv(g,p,i);
+  const spend = Math.max(0, p.cash - reserveFor(g,p)*0.45);
+  const eager = p.cfg.trade==="aggressive" ? 1.0 : 0.85;
+  return Math.floor(Math.min(v*eager, spend, p.cash));
+}
+function acquire(g,p,i,price,how){
+  g.owner[i] = p.idx;
+  p.cash -= price;
+  p.ledger[BOARD[i].g].out += price;
+  if(how==="auction") p.stats.auctionsWon++; else p.stats.bought++;
+}
+
+/* ---------- development ---------- */
+function buildPhase(g,p){
+  const target = clamp(p.cfg.houseTarget,1,5);
+  const sets = GROUP_KEYS.filter(k=>
+    GROUPS[k].house>0 && hasMonopoly(g,p,k) &&
+    !GROUPS[k].members.some(i=>g.mortgaged[i])
+  ).sort((a,b)=>{
+    const pa = p.cfg.priority.includes(a)?1:0, pb = p.cfg.priority.includes(b)?1:0;
+    if(pa!==pb) return pb-pa;
+    // best rent per dollar of house at the target level
+    const eff = k => GROUPS[k].members.reduce((s,i)=>
+      s + FREQ[i]/100*BOARD[i].rent[target], 0) / GROUPS[k].house;
+    return eff(b)-eff(a);
+  });
+
+  let guard = 0, built = 0;
+  const tally = {};   // building is a cash movement too, so it gets logged
+  mark(g);
+  while(guard++ < 80){
+    let did = false;
+    for(const k of sets){
+      const cost = GROUPS[k].house;
+      const members = GROUPS[k].members;
+      const lvls = members.map(i=>g.level[i]);
+      const minL = Math.min(...lvls);
+      if(minL >= target) continue;
+      const i = members[lvls.indexOf(minL)];
+      if(p.cash - cost < reserveFor(g,p)) continue;
+      if(minL < 4){
+        if(g.houses <= 0) continue;                  // housing shortage
+        g.houses--; g.level[i]++;
+        p.cash -= cost;
+        p.ledger[k].out += cost; p.ledger[k].buildOut += cost;
+        p.stats.housesBuilt++; did = true; built++;
+        tally[k] = tally[k] || {h:0,ho:0,spent:0};
+        tally[k].h++; tally[k].spent += cost;
+      } else {
+        if(target < 5 || g.hotels <= 0) continue;
+        g.hotels--; g.houses += 4; g.level[i] = 5;
+        p.cash -= cost;
+        p.ledger[k].out += cost; p.ledger[k].buildOut += cost;
+        p.stats.hotelsBuilt++; did = true; built++;
+        tally[k] = tally[k] || {h:0,ho:0,spent:0};
+        tally[k].ho++; tally[k].spent += cost;
+      }
+    }
+    if(!did) break;
+  }
+  if(built){
+    let spent = 0;
+    const parts = Object.keys(tally).map(k=>{
+      const t = tally[k]; spent += t.spent;
+      const bits = [];
+      if(t.h)  bits.push(t.h + (t.h === 1 ? " house" : " houses"));
+      if(t.ho) bits.push(t.ho + (t.ho === 1 ? " hotel" : " hotels"));
+      return bits.join(" and ") + " on " + GROUPS[k].name;
+    });
+    ev(g,"build",
+      `<b class="rt bld">Builds</b> P${p.id} puts up ${parts.join(", ")}`+
+      ` for <b class="amt">${money(spent)}</b> &mdash; ${g.houses} houses and ${g.hotels} hotels left in the bank.`,
+      p, g.houses === 0);
+    if(g.houses === 0) ev(g,"build","The bank is out of houses. Nobody can build again until a hotel frees four up.",null,true);
+  } else {
+    g._pre = null;
+  }
+  return built;
+}
+
+function unmortgagePhase(g,p){
+  for(const i of myProps(g,p)){
+    if(!g.mortgaged[i]) continue;
+    const fee = Math.ceil(BOARD[i].mortgage*1.1);
+    if(p.cash - fee > reserveFor(g,p)*2){
+      mark(g);
+      p.cash -= fee; g.mortgaged[i] = false;
+      p.ledger[BOARD[i].g].out += fee;
+      ev(g,"unmortgage",
+        `P${p.id} lifts the mortgage on ${BOARD[i].n} for <b class="amt">${money(fee)}</b>,`+
+        ` so it earns rent again.`, p);
+    }
+  }
+}
+
+/* ---------- liquidation ---------- */
+function raiseCash(g,p,need){
+  let guard = 0;
+  const opening = p.cash, acts = [];
+  while(p.cash < need && guard++ < 200){
+    /* 1. mortgage a spare undeveloped deed first. Half the price in cash and
+          the rent engine keeps running — always better than selling houses,
+          which refunds half and knocks the whole colour down a rent tier. */
+    let mi = -1, ms = Infinity;
+    for(const i of myProps(g,p)){
+      if(g.mortgaged[i] || g.level[i] > 0) continue;
+      if(hasMonopoly(g,p,BOARD[i].g) && GROUPS[BOARD[i].g].members.some(m=>g.level[m]>0)) continue;
+      const v = nv(g,p,i);
+      if(v < ms){ ms = v; mi = i; }
+    }
+    if(mi >= 0){
+      g.mortgaged[mi] = true;
+      p.cash += BOARD[mi].mortgage;
+      p.ledger[BOARD[mi].g].sales += BOARD[mi].mortgage;
+      acts.push("mortgages " + BOARD[mi].n);
+      continue;
+    }
+    // 2. only then sell the least productive building
+    let bi = -1, bs = Infinity;
+    for(const i of myProps(g,p)){
+      if(g.level[i] <= 0) continue;
+      const grp = BOARD[i].g, members = GROUPS[grp].members;
+      const maxL = Math.max(...members.map(m=>g.level[m]));
+      if(g.level[i] !== maxL) continue;            // even-sell rule
+      const s = FREQ[i]/100*BOARD[i].rent[g.level[i]] * (p.cfg.priority.includes(grp)?2:1);
+      if(s < bs){ bs = s; bi = i; }
+    }
+    if(bi >= 0){
+      const grp = BOARD[bi].g, cost = GROUPS[grp].house;
+      let refund;
+      if(g.level[bi] === 5){
+        if(g.houses >= 4){ g.houses -= 4; g.hotels++; g.level[bi] = 4; refund = cost/2; }
+        else { g.hotels++; g.level[bi] = 0; refund = cost*5/2; }
+      } else {
+        g.houses++; g.level[bi]--; refund = cost/2;
+      }
+      p.cash += refund;
+      p.ledger[grp].sales += refund; p.ledger[grp].buildSales += refund;
+      acts.push("sells buildings on " + BOARD[bi].n + " back at half price");
+      continue;
+    }
+    // 3. last resort: mortgage a stripped deed inside a developed colour
+    let li = -1, ls = Infinity;
+    for(const i of myProps(g,p)){
+      if(g.mortgaged[i] || g.level[i] > 0) continue;
+      const v = nv(g,p,i);
+      if(v < ls){ ls = v; li = i; }
+    }
+    if(li >= 0){
+      g.mortgaged[li] = true;
+      p.cash += BOARD[li].mortgage;
+      p.ledger[BOARD[li].g].sales += BOARD[li].mortgage;
+      acts.push("mortgages " + BOARD[li].n);
+      continue;
+    }
+    break;
+  }
+  if(acts.length){
+    const raised = p.cash - opening;
+    const seen = [], counts = {};
+    for(const a of acts){ if(!(a in counts)){ counts[a]=0; seen.push(a); } counts[a]++; }
+    const list = seen.map(a => counts[a] > 1 ? a + " (\u00d7" + counts[a] + ")" : a);
+    const br = cashNow(g);
+    br[p.idx] = opening;
+    ev(g,"raise",
+      `<b class="rt warn">Raises cash</b> P${p.id} needs <b class="amt">${money(need)}</b> and `+
+      `${list.join(", ")} to find <b class="amt">${money(raised)}</b>.`, p, true, br);
+  }
+}
+
+function bankrupt(g,p,to){
+  p.bankrupt = true;
+  if(to){
+    to.cash += Math.max(0,p.cash);
+    for(const i of myProps(g,p)){
+      g.owner[i] = to.idx;
+      // buildings are sold back to the bank on bankruptcy
+      if(g.level[i] > 0){
+        if(g.level[i] === 5){ g.hotels++; g.houses += 4; }
+        else g.houses += g.level[i];
+        g.level[i] = 0;
+      }
+    }
+  } else {
+    for(const i of myProps(g,p)){
+      g.owner[i] = -1; g.mortgaged[i] = false;
+      if(g.level[i] === 5){ g.hotels++; g.houses += 4; } else g.houses += g.level[i];
+      g.level[i] = 0;
+    }
+  }
+  p.cash = 0;
+  g.over = true;
+  g.winner = to ? to.id : other(g,p).id;
+  g.reason = "bankruptcy";
+}
+
+/* Returns true if paid, false if the payer went bankrupt.
+   Stamps g._chargePre with the balances as they stood at the instant of the
+   deduction — i.e. after any scramble to raise cash — so the caller's log line
+   reports the payment itself rather than the scramble that preceded it. */
+function charge(g,p,amt,to){
+  if(amt <= 0){ g._chargePre = cashNow(g); return true; }
+  if(p.cash < amt) raiseCash(g,p,amt);
+  g._chargePre = cashNow(g);
+  if(p.cash < amt){ bankrupt(g,p,to); return false; }
+  p.cash -= amt;
+  if(to) to.cash += amt;
+  else if(g.cfg.rules.freeParkingPot) g.pot += amt;
+  return true;
+}
+
+/* ==================================================================
+   TRADING
+   ================================================================== */
+function acceptRatio(pl){
+  switch(pl.cfg.trade){
+    case "fair":       return 1.18;
+    case "aggressive": return 0.88;
+    case "blocker":    return 1.32;
+    case "hoarder":    return 1.06;
+    case "winwin":     return 1.10;
+    default:           return Infinity;
+  }
+}
+function offerPremium(pl){
+  switch(pl.cfg.trade){
+    case "aggressive": return 1.60;
+    case "winwin":     return 1.25;
+    case "blocker":    return 1.12;
+    case "hoarder":    return 1.05;
+    default:           return 1.00;
+  }
+}
+
+function buildOffer(g,p){
+  const ts = p.cfg.trade;
+  if(ts === "never") return null;
+  const opp = other(g,p);
+  // a deed that has just changed hands is off the table for a while, or the
+  // two players spend the whole game shuttling the same cards back and forth
+  const COOL = 10;
+  const settled = i => groupClear(g,i) && (g.turn - g.moved[i]) > COOL;
+  const oppHas = myProps(g,opp).filter(settled);
+  if(!oppHas.length) return null;
+  const mineHas = myProps(g,p).filter(settled);
+
+  const prem = offerPremium(p);
+  const need = acceptRatio(opp);
+  const myBudget = Math.max(0, p.cash - reserveFor(g,p)*0.7);
+  const oppBudget = Math.max(0, opp.cash - reserveFor(g,opp)*0.9);
+  let best = null;
+
+  for(const W of oppHas){
+    const wantVal = nv(g,p,W) + denialValue(g,p,W)*(ts==="blocker"?1:0.35);
+    const oppLose = nv(g,opp,W);
+    if(wantVal < BOARD[W].price*0.7) continue;
+
+    const gives = [null, ...mineHas];
+    for(const X of gives){
+      if(X !== null){
+        const xg = BOARD[X].g;
+        if(hasMonopoly(g,p,xg)) continue;                 // never break my own set
+        const xCompletes = completesFor(g,opp,X);
+        const iComplete  = completesFor(g,p,W);
+        if(xCompletes){
+          if(ts === "fair" || ts === "blocker") continue;  // hard refusal
+          if(ts === "winwin" && !iComplete) continue;      // only as a mutual deal
+        }
+        if(p.cfg.priority.includes(xg) && nv(g,p,X) > BOARD[X].price) continue;
+      }
+      let giveVal = X === null ? 0 : nv(g,p,X);
+      const oppGain = X === null ? 0 : nv(g,opp,X);
+      // if I'd be completing their colour, charge myself for it too
+      if(X !== null && completesFor(g,opp,X) && !completesFor(g,p,W)) giveVal *= 1.8;
+
+      // minimum cash I must add for the opponent to say yes
+      const mutual = X !== null && completesFor(g,opp,X);
+      const iComplete = completesFor(g,p,W);
+      let oppLoseAdj = oppLose;
+      if(iComplete && !mutual) oppLoseAdj *= (opp.cfg.trade === "fair" ? 2.2 : 1.8);
+      let C = Math.ceil((oppLoseAdj*need - oppGain)/10)*10;
+      if(ts === "hoarder" && C > 0) continue;              // never pays cash
+      if(C > 0){
+        /* Cash in hand is worth more than any valuation model says, because it
+           is the only thing standing between you and bankruptcy. Nobody hands
+           over $900 for a $180 deed, however good the colour looks. */
+        const cashCap = Math.min(myBudget, BOARD[W].price*1.5 + 150, p.cash*0.45);
+        if(C > cashCap) continue;
+      } else {
+        C = Math.max(C, -oppBudget);
+      }
+      // the deal has to actually be worth the paperwork
+      const myNet = wantVal*prem - giveVal - C;
+      if(myNet <= wantVal*0.12) continue;
+      // hoarder wants to actually extract money
+      const score = myNet + (ts === "hoarder" ? -C*0.5 : 0);
+      if(!best || score > best.score){
+        best = {score, from:p.id, to:opp.id, get:[W], give:X===null?[]:[X], cash:C,
+                note:noteFor(g,p,opp,W,X,C)};
+      }
+    }
+  }
+  return best;
+}
+
+function noteFor(g,p,opp,W,X,C){
+  const bits = [];
+  if(completesFor(g,p,W)) bits.push("completes " + GROUPS[BOARD[W].g].name + " for P" + p.id);
+  if(X !== null && completesFor(g,opp,X)) bits.push("completes " + GROUPS[BOARD[X].g].name + " for P" + opp.id);
+  if(C > 0) bits.push("P" + p.id + " sweetens with cash");
+  if(C < 0) bits.push("P" + p.id + " demands cash");
+  if(!bits.length) bits.push(TRADE_STRATS[p.cfg.trade].name + " angling for position");
+  return bits.join(" · ");
+}
+
+function evaluateOffer(g,offer){
+  const p = g.players.find(x=>x.id===offer.from);
+  const opp = g.players.find(x=>x.id===offer.to);
+  if(opp.cfg.trade === "never") return false;
+  let gain = 0, lose = 0;
+  for(const i of offer.give) gain += nv(g,opp,i);
+  for(const i of offer.get)  lose += nv(g,opp,i);
+  gain += offer.cash;
+  // handing over a card that completes the other player's colour is the
+  // single most expensive thing you can do, so every doctrine prices it up
+  const mutual = offer.give.some(j=>completesFor(g,opp,j));
+  for(const i of offer.get){
+    if(!completesFor(g,p,i)) continue;
+    if(opp.cfg.trade === "blocker") return false;
+    if(opp.cfg.trade === "winwin" && !mutual) return false;
+    if(!mutual) lose *= (opp.cfg.trade === "fair" ? 2.2 : 1.8);
+    break;
+  }
+  if(opp.cfg.trade === "hoarder" && offer.cash < 0) return false;   // won't pay out
+  if(offer.cash < 0 && opp.cash + offer.cash < reserveFor(g,opp)) return false;
+  return gain >= lose * acceptRatio(opp);
+}
+
+/* Spread a player's net cash outflow from a trade across the colours
+   that moved: money paid out is charged to what they received, money
+   taken in is credited against what they gave up. Either way it lands
+   in the same `invest` figure the ROI table divides rent by.          */
+function attribCash(pl, outflow, received, given){
+  if(!outflow) return;
+  const list = outflow > 0 ? (received.length ? received : given)
+                           : (given.length ? given : received);
+  if(!list.length) return;
+  const tot = list.reduce((s,i)=>s+BOARD[i].price,0) || 1;
+  for(const i of list){
+    const share = outflow * BOARD[i].price/tot;
+    const L = pl.ledger[BOARD[i].g];
+    if(share > 0){ L.out += share;   L.tradeOut += share; }
+    else         { L.sales -= share; L.tradeIn  -= share; }
+  }
+}
+
+function executeTrade(g,offer){
+  const p = g.players.find(x=>x.id===offer.from);
+  const opp = g.players.find(x=>x.id===offer.to);
+  const cash = offer.cash;              // positive = p pays opp
+  p.cash -= cash; opp.cash += cash;
+  attribCash(p,   cash, offer.get,  offer.give);
+  attribCash(opp,-cash, offer.give, offer.get);
+  for(const i of offer.get){  g.owner[i] = p.idx;   g.moved[i] = g.turn; }
+  for(const i of offer.give){ g.owner[i] = opp.idx; g.moved[i] = g.turn; }
+}
+
+/* ==================================================================
+   MOVEMENT & SQUARE RESOLUTION
+   ================================================================== */
+function goToJail(g,p){
+  p.pos = 10; p.jail = true; p.jailTurns = 0; p.doubles = 0;
+  p.stats.timesJailed++;
+  ev(g,"jail","P"+p.id+" is sent to Jail.",p);
+}
+
+function advance(g,p,steps){
+  const from = p.pos;
+  p.pos = (p.pos + steps) % 40;
+  if(p.pos < from || steps >= 40){
+    let amt = 200;
+    if(g.cfg.rules.doubleOnGo && p.pos === 0) amt = 400;
+    mark(g);
+    p.cash += amt;
+    ev(g,"go","P"+p.id+" passes GO, collects "+money(amt)+".",p);
+  } else if(p.pos === 0 && g.cfg.rules.doubleOnGo && steps > 0){
+    p.cash += 200;
+  }
+}
+function jumpTo(g,p,target,collectGo){
+  if(collectGo !== false && target <= p.pos && target !== p.pos){
+    mark(g);
+    p.cash += 200;
+    ev(g,"go","P"+p.id+" passes GO, collects $200.",p);
+  }
+  p.pos = target;
+}
+
+/* Plain-English reason the rent is the size it is. */
+function rentBasis(g,i,dice,mult){
+  const s = BOARD[i], o = g.players[g.owner[i]];
+  let why;
+  if(s.type === "rail"){
+    const c = ownedIn(g,o,"rail");
+    why = c + (c === 1 ? " railroad held" : " railroads held");
+  } else if(s.type === "util"){
+    const c = ownedIn(g,o,"util");
+    why = c === 2 ? "both utilities, 10× the dice roll of " + dice
+                  : "one utility, 4× the dice roll of " + dice;
+  } else {
+    const lvl = g.level[i];
+    if(lvl === 5) why = "hotel";
+    else if(lvl > 0) why = lvl + (lvl === 1 ? " house" : " houses");
+    else why = hasMonopoly(g,o,s.g) ? "complete set but undeveloped, so double rent"
+                                    : "single deed, no set";
+  }
+  if(mult && mult !== 1) why += ", then doubled by the card drawn";
+  return why;
+}
+
+function payRent(g,p,i,dice,mult){
+  const owner = g.players[g.owner[i]];
+  let amt = rentFor(g,i,dice) * (mult || 1);
+  if(amt <= 0){ ev(g,"rent","P"+p.id+" lands on "+BOARD[i].n+" — mortgaged, so no rent is owed.",p); return; }
+  const base = unimprovedRent(g,i) * (mult || 1);
+  const grp = BOARD[i].g;
+  const why = rentBasis(g,i,dice,mult);
+  const ok = charge(g,p,amt,owner);
+  const b0 = g._chargePre;
+  if(ok){
+    owner.ledger[grp].rent += amt;
+    owner.ledger[grp].buildRent += Math.max(0, amt - base);
+    owner.stats.rentGot += amt; p.stats.rentPaid += amt;
+    ev(g,"rent",
+      `<b class="rt">Rent</b> P${p.id} pays <b class="amt">${money(amt)}</b> to P${owner.id}`+
+      ` &mdash; ${BOARD[i].n} (${why})`, p, amt>=400, b0);
+  } else {
+    ev(g,"bust",
+      `<b class="rt bad">Rent</b> P${p.id} owes <b class="amt">${money(amt)}</b> to P${owner.id}`+
+      ` on ${BOARD[i].n} (${why}) and cannot cover it &mdash; bankrupt.`, p, true, b0);
+  }
+}
+
+function* landOn(g,p,dice){
+  const i = p.pos, s = BOARD[i];
+  if(s.price){
+    if(g.owner[i] === -1){
+      if(wantsToBuy(g,p,i)){
+        mark(g);
+        acquire(g,p,i,s.price,"buy");
+        ev(g,"buy","P"+p.id+" buys "+s.n+" for "+money(s.price)+".",p);
+        yield {k:"buy",p,i};
+      } else if(g.cfg.rules.auctions){
+        yield* auction(g,i,p);
+      } else {
+        ev(g,"pass","P"+p.id+" declines "+s.n+".",p);
+      }
+    } else if(g.owner[i] !== p.idx){
+      payRent(g,p,i,dice,1);
+    }
+    return;
+  }
+  switch(s.type){
+    case "tax": {
+      const amt = s.tax === "income" ? Math.min(200, Math.round(netWorth(g,p)*0.1)) : 75;
+      charge(g,p,amt,null);
+      const bt = g._chargePre;
+      ev(g,"tax","P"+p.id+" pays <b class=\"amt\">"+money(amt)+"</b> in "+(s.tax==="income"?"income":"luxury")+" tax.",p,false,bt);
+      break;
+    }
+    case "free":
+      if(g.cfg.rules.freeParkingPot && g.pot > 0){
+        mark(g);
+        p.cash += g.pot;
+        ev(g,"pot","P"+p.id+" scoops the "+money(g.pot)+" Free Parking pot.",p,true);
+        g.pot = 0;
+      }
+      break;
+    case "gotojail": goToJail(g,p); break;
+    case "chance": yield* drawCard(g,p,"chance"); break;
+    case "chest":  yield* drawCard(g,p,"chest");  break;
+  }
+}
+
+function* auction(g,i,starter){
+  const s = BOARD[i];
+  const bids = g.players.map(p=>({p, max:maxBid(g,p,i)}));
+  const eligible = bids.filter(b=>b.max >= 10);
+  if(!eligible.length){
+    ev(g,"auction",s.n+" goes unsold at auction.",null);
+    return;
+  }
+  // tied valuations must not hand the lot to whoever sits first at the table
+  shuffled(eligible, g.rng).forEach((b,k)=>{ eligible[k] = b; });
+  eligible.sort((a,b)=>b.max-a.max);
+  const win = eligible[0];
+  const second = eligible[1] ? eligible[1].max : 0;
+  const price = Math.max(10, Math.min(win.max, second + 10));
+  mark(g);
+  acquire(g,win.p,i,price,"auction");
+  ev(g,"auction","Auction: P"+win.p.id+" takes "+s.n+" for "+money(price)+
+     (eligible.length>1 ? " (P"+eligible[1].p.id+" out at "+money(second)+")" : " (uncontested)"),win.p);
+  yield {k:"auction",p:win.p,i,price};
+}
+
+function nearest(g,p,kind){
+  for(let d=1;d<=40;d++){
+    const i = (p.pos+d)%40;
+    if(BOARD[i].type === kind) return i;
+  }
+  return p.pos;
+}
+
+function* drawCard(g,p,deck){
+  let idx, card;
+  if(deck === "chance"){
+    if(g.chanceI >= g.chance.length){ g.chance = shuffled(g.chance,g.rng); g.chanceI = 0; }
+    idx = g.chance[g.chanceI++]; card = CHANCE[idx];
+  } else {
+    if(g.chestI >= g.chest.length){ g.chest = shuffled(g.chest,g.rng); g.chestI = 0; }
+    idx = g.chest[g.chestI++]; card = CHEST[idx];
+  }
+  const a = card.a;
+  const keys = Object.keys(a);
+  if(keys.length === 1 && keys[0] === "pay"){
+    let bp = cashNow(g);
+    if(a.pay > 0) p.cash += a.pay;
+    else { charge(g,p,-a.pay,null); bp = g._chargePre || bp; }
+    ev(g,"card","P"+p.id+" draws "+(deck==="chance"?"Chance":"Chest")+": "+card.t,p,false,bp);
+    yield {k:"card",p,text:card.t,deck};
+    return;
+  }
+  ev(g,"card","P"+p.id+" draws "+(deck==="chance"?"Chance":"Chest")+": "+card.t,p);
+  yield {k:"card",p,text:card.t,deck};
+
+  if(a.gooj){ p.gooj++; return; }
+  if(a.jail){ goToJail(g,p); return; }
+  if(a.eachPay !== undefined){
+    const o = other(g,p);
+    charge(g,p,a.eachPay,o);
+    const be = g._chargePre;
+    ev(g,"rent","P"+p.id+" pays <b class=\"amt\">"+money(a.eachPay)+"</b> to P"+o.id+" on the card.",p,false,be);
+    return;
+  }
+  if(a.eachCollect !== undefined){
+    const o = other(g,p);
+    charge(g,o,a.eachCollect,p);
+    const bc = g._chargePre;
+    ev(g,"rent","P"+o.id+" pays <b class=\"amt\">"+money(a.eachCollect)+"</b> to P"+p.id+" on the card.",p,false,bc);
+    return;
+  }
+  if(a.repairs){
+    let h=0,ho=0;
+    for(const i of myProps(g,p)){ if(g.level[i]===5) ho++; else h += g.level[i]; }
+    const amt = h*a.repairs[0] + ho*a.repairs[1];
+    if(amt>0){ charge(g,p,amt,null); const br = g._chargePre;
+      ev(g,"tax","P"+p.id+" pays <b class=\"amt\">"+money(amt)+"</b> for repairs on "+h+" houses and "+ho+" hotels.",p,false,br); }
+    return;
+  }
+  if(a.nearest){
+    const t = nearest(g,p,a.nearest);
+    jumpTo(g,p,t,true);
+    if(g.owner[t] === -1){ yield* landOn(g,p,7); }
+    else if(g.owner[t] !== p.idx){
+      const d = (1+Math.floor(g.rng()*6)) + (1+Math.floor(g.rng()*6));
+      if(a.nearest === "util") payRent(g,p,t,d,10/ (ownedIn(g,g.players[g.owner[t]],"util")===2?10:4));
+      else payRent(g,p,t,d,2);
+    }
+    return;
+  }
+  if(a.back !== undefined){
+    p.pos = (p.pos - a.back + 40) % 40;
+    yield* landOn(g,p,7);
+    return;
+  }
+  if(a.move !== undefined){
+    const collect = a.pay === 200 && a.move === 0 ? false : true;
+    if(a.move === 0){ p.pos = 0; mark(g); p.cash += 200; ev(g,"go","P"+p.id+" advances to GO, collects $200.",p); return; }
+    jumpTo(g,p,a.move,collect);
+    yield* landOn(g,p,7);
+    return;
+  }
+  if(a.pay !== undefined){
+    mark(g);
+    if(a.pay > 0) p.cash += a.pay;
+    else charge(g,p,-a.pay,null);
+  }
+}
+
+/* ==================================================================
+   THE TURN
+   ================================================================== */
+function wantsOutOfJail(g,p){
+  if(p.gooj > 0) return true;
+  const opp = other(g,p);
+  let danger = 0;
+  for(const i of myProps(g,opp)) danger = Math.max(danger, rentFor(g,i,7));
+  if(danger >= 500 && p.cash < 900) return false;   // safer inside
+  return p.cash >= 50;
+}
+
+function* takeTurn(g){
+  const p = g.players[g.cur];
+  g.turn++;
+  if(g.houses === 0) g.shortageTurns++;
+  yield {k:"turn",p};
+
+  /* --- deal table --- */
+  const offer = buildOffer(g,p);
+  if(offer){
+    p.stats.tradesProposed++;
+    other(g,p).stats.tradesReceived++;
+    const ok = evaluateOffer(g,offer);
+    if(ok){
+      mark(g);
+      executeTrade(g,offer);
+      p.stats.tradesAccepted++; other(g,p).stats.tradesTaken++;
+      ev(g,"trade","TRADE: P"+offer.from+" gets "+offer.get.map(i=>BOARD[i].n).join(", ")+
+         (offer.give.length? " for "+offer.give.map(i=>BOARD[i].n).join(", "):"")+
+         (offer.cash? " "+(offer.cash>0?"plus ":"and receives ")+money(Math.abs(offer.cash)):"")+".",p,true);
+    } else {
+      ev(g,"trade","P"+offer.to+" declines P"+offer.from+"'s offer.",p);
+    }
+    yield {k:"trade",offer,accepted:ok};
+    if(g.over) return;
+  }
+
+  /* --- jail --- */
+  if(p.jail){
+    p.jailTurns++;
+    const want = wantsOutOfJail(g,p);
+    if(want && p.gooj > 0){
+      p.gooj--; p.jail = false;
+      ev(g,"jail","P"+p.id+" plays Get Out of Jail Free.",p);
+    } else if(want && p.cash >= 50){
+      charge(g,p,50,null); const bj = g._chargePre; p.jail = false;
+      ev(g,"jail","P"+p.id+" pays <b class=\"amt\">$50</b> to leave Jail.",p,false,bj);
+    } else {
+      const d1 = 1+Math.floor(g.rng()*6), d2 = 1+Math.floor(g.rng()*6);
+      yield {k:"dice",p,d1,d2};
+      if(d1 === d2){
+        p.jail = false;
+        ev(g,"jail","P"+p.id+" rolls doubles and leaves Jail.",p);
+        advance(g,p,d1+d2);
+        ev(g,"move","P"+p.id+" moves to "+BOARD[p.pos].n+".",p);
+        yield {k:"move",p};
+        yield* landOn(g,p,d1+d2);
+      } else if(p.jailTurns >= 3){
+        charge(g,p,50,null); const bj3 = g._chargePre; p.jail = false;
+        ev(g,"jail","P"+p.id+" serves the third turn and pays <b class=\"amt\">$50</b>.",p,false,bj3);
+        if(!g.over){
+          advance(g,p,d1+d2);
+          yield {k:"move",p};
+          yield* landOn(g,p,d1+d2);
+        }
+      } else {
+        ev(g,"jail","P"+p.id+" stays in Jail (turn "+p.jailTurns+" of 3).",p);
+      }
+      if(!g.over){ buildPhase(g,p); unmortgagePhase(g,p); }
+      p.stats.maxNet = Math.max(p.stats.maxNet, netWorth(g,p));
+  p.stats.setsPeak = Math.max(p.stats.setsPeak, GROUP_KEYS.filter(k=>hasMonopoly(g,p,k)).length);
+  if(g.houses === 0){
+    let held = 0;
+    for(const i of myProps(g,p)) if(g.level[i] > 0 && g.level[i] < 5) held += g.level[i];
+    if(held >= 16) p.stats.shortageCaused++;
+  }
+      g.cur = 1-g.cur;
+      yield {k:"end",p};
+      return;
+    }
+  }
+
+  /* --- rolling --- */
+  let rolls = 0;
+  while(!g.over){
+    const d1 = 1+Math.floor(g.rng()*6), d2 = 1+Math.floor(g.rng()*6);
+    yield {k:"dice",p,d1,d2};
+    if(d1 === d2){
+      rolls++;
+      if(rolls === 3){
+        ev(g,"jail","P"+p.id+" rolls a third double.",p);
+        goToJail(g,p);
+        yield {k:"move",p};
+        break;
+      }
+    }
+    advance(g,p,d1+d2);
+    ev(g,"move","P"+p.id+" rolls "+d1+"+"+d2+" to "+BOARD[p.pos].n+".",p);
+    yield {k:"move",p};
+    yield* landOn(g,p,d1+d2);
+    if(g.over) break;
+    if(p.jail) break;
+    if(d1 !== d2) break;
+  }
+
+  if(!g.over){
+    const built = buildPhase(g,p);
+    if(built) yield {k:"build",p};
+    unmortgagePhase(g,p);
+  }
+  p.stats.maxNet = Math.max(p.stats.maxNet, netWorth(g,p));
+  p.stats.setsPeak = Math.max(p.stats.setsPeak, GROUP_KEYS.filter(k=>hasMonopoly(g,p,k)).length);
+  if(g.houses === 0){
+    let held = 0;
+    for(const i of myProps(g,p)) if(g.level[i] > 0 && g.level[i] < 5) held += g.level[i];
+    if(held >= 16) p.stats.shortageCaused++;
+  }
+  g.cur = 1-g.cur;
+  yield {k:"end",p};
+}
+
+function* playGame(g){
+  while(!g.over){
+    if(g.turn >= g.cfg.turnCap*2){
+      const a = netWorth(g,g.players[0]), b = netWorth(g,g.players[1]);
+      g.over = true;
+      g.reason = "turn cap";
+      g.winner = a === b ? 0 : (a > b ? 1 : 2);
+      ev(g,"end","Turn cap reached. "+(g.winner? "P"+g.winner+" leads on net worth." : "Dead heat."),null,true);
+      break;
+    }
+    yield* takeTurn(g);
+  }
+  if(g.reason === "bankruptcy") ev(g,"end","P"+g.winner+" wins by bankruptcy on turn "+Math.ceil(g.turn/2)+".",null,true);
+  yield {k:"gameover"};
+}
+
+/* ==================================================================
+   Part 3 — interface, board, batch runner, ledger
+   ================================================================== */
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const e = document.createElement(t); if(c) e.className = c; if(h!=null) e.innerHTML = h; return e; };
+
+/* ---------- doctrine state ---------- */
+/* Opening experiment: orange against dark blue, both building to hotels and
+   identical in every other respect, so the colour is the only variable. */
+const doctrine = [
+  {priority:["orange"],   houseTarget:5, acquire:"monopoly", trade:"fair"},
+  {priority:["darkblue"], houseTarget:5, acquire:"monopoly", trade:"fair"}
+];
+const PNAMES = ["Player 1","Player 2"];
+
+/* ---------- theme ---------- */
+$("#themebtn").onclick = () => {
+  const r = document.documentElement;
+  const cur = r.getAttribute("data-theme");
+  const sysDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  r.setAttribute("data-theme", cur ? (cur === "dark" ? "light" : "dark") : (sysDark ? "light" : "dark"));
+};
+
+/* ---------- setup cards ---------- */
+function buildSetup(){
+  const host = $("#setup");
+  host.innerHTML = "";
+  doctrine.forEach((d,pi)=>{
+    const card = el("div","deed");
+    card.dataset.p = pi+1;
+    card.innerHTML = `
+      <div class="deed-head">
+        <span class="token-dot">${pi+1}</span>
+        <h3>${PNAMES[pi]}</h3>
+        <span class="pnick" id="nick${pi}"></span>
+      </div>
+      <div class="deed-body">
+        <div class="field">
+          <span class="flabel">1 · Target colours</span>
+          <div class="chips" id="chips${pi}"></div>
+          <p class="fhint">Prioritised colours are worth ~1.85× in every buy, bid and trade decision. Pick none to let the maths decide on its own.</p>
+        </div>
+        <div class="field">
+          <span class="flabel">2 · Build to</span>
+          <div class="seg" id="seg${pi}"></div>
+          <p class="fhint" id="hhint${pi}"></p>
+        </div>
+        <div class="field">
+          <span class="flabel">3 · Acquisition</span>
+          <select id="acq${pi}"></select>
+          <p class="fhint" id="acqhint${pi}"></p>
+        </div>
+        <div class="field">
+          <span class="flabel">4 · Deal table</span>
+          <select id="trd${pi}"></select>
+          <p class="fhint" id="trdhint${pi}"></p>
+        </div>
+      </div>`;
+    host.appendChild(card);
+
+    // colour chips
+    const chips = card.querySelector("#chips"+pi);
+    for(const k of PICKABLE){
+      const b = el("button","chip",
+        `<span class="sw" style="--sw:var(${GROUPS[k].css})"></span>${GROUPS[k].name}`);
+      b.type = "button";
+      b.setAttribute("aria-pressed", d.priority.includes(k) ? "true" : "false");
+      b.onclick = () => {
+        const on = d.priority.includes(k);
+        if(on) d.priority = d.priority.filter(x=>x!==k); else d.priority.push(k);
+        b.setAttribute("aria-pressed", on ? "false" : "true");
+        syncNick(pi);
+      };
+      chips.appendChild(b);
+    }
+    // house segmented control
+    const seg = card.querySelector("#seg"+pi);
+    for(let lv=1; lv<=5; lv++){
+      const icons = lv===5 ? `<span class="hotelicon"></span>`
+                           : Array.from({length:lv},()=>`<span class="hicon"></span>`).join("");
+      const b = el("button", null, `<span class="bi">${icons}</span><span>${lv===5?"Hotel":lv+"H"}</span>`);
+      b.type = "button";
+      b.setAttribute("aria-pressed", d.houseTarget===lv ? "true":"false");
+      b.onclick = () => {
+        d.houseTarget = lv;
+        seg.querySelectorAll("button").forEach((x,j)=>x.setAttribute("aria-pressed", j===lv-1?"true":"false"));
+        hhint(pi); syncNick(pi);
+      };
+      seg.appendChild(b);
+    }
+    // selects
+    const acq = card.querySelector("#acq"+pi);
+    for(const k in ACQUIRE_STRATS) acq.appendChild(el("option",null,ACQUIRE_STRATS[k].name)).value = k;
+    acq.value = d.acquire;
+    acq.onchange = () => { d.acquire = acq.value; card.querySelector("#acqhint"+pi).textContent = ACQUIRE_STRATS[acq.value].blurb; syncNick(pi); };
+
+    const trd = card.querySelector("#trd"+pi);
+    for(const k in TRADE_STRATS) trd.appendChild(el("option",null,TRADE_STRATS[k].name)).value = k;
+    trd.value = d.trade;
+    trd.onchange = () => { d.trade = trd.value; card.querySelector("#trdhint"+pi).textContent = TRADE_STRATS[trd.value].blurb; syncNick(pi); };
+
+    card.querySelector("#acqhint"+pi).textContent = ACQUIRE_STRATS[d.acquire].blurb;
+    card.querySelector("#trdhint"+pi).textContent = TRADE_STRATS[d.trade].blurb;
+    hhint(pi); syncNick(pi);
+  });
+}
+function hhint(pi){
+  const lv = doctrine[pi].houseTarget;
+  const txt = {
+    1:"One house each. Cheap, and leaves 30 houses on the table for the opponent.",
+    2:"Two each. Still light — rent roughly triples over one house.",
+    3:"Three each. The steep part of the rent curve, and the level that starves the 32-house pool fastest per dollar.",
+    4:"Four each. Only ~23% more rent than three, for the same house cost.",
+    5:"Hotels. Highest rent per property, but every hotel hands four houses back to the pool."
+  }[lv];
+  const h = document.querySelector("#hhint"+pi);
+  if(h) h.textContent = txt;
+}
+function syncNick(pi){
+  const d = doctrine[pi];
+  const cols = d.priority.length ? d.priority.map(k=>GROUPS[k].short).join("/") : "no colour bias";
+  const n = document.querySelector("#nick"+pi);
+  if(n) n.textContent = cols + " · " + HOUSE_LABELS[d.houseTarget] + " · " + TRADE_STRATS[d.trade].name;
+}
+
+/* ---------- board ---------- */
+const SQ = [];
+function gridPos(i){
+  if(i === 0)  return [11,11];
+  if(i < 10)   return [11, 11-i];
+  if(i === 10) return [11,1];
+  if(i < 20)   return [11-(i-10), 1];
+  if(i === 20) return [1,1];
+  if(i < 30)   return [1, (i-20)+1];
+  if(i === 30) return [1,11];
+  return [(i-30)+1, 11];
+}
+function sideOf(i){
+  if(i>=1 && i<=9) return "bottom";
+  if(i>=11 && i<=19) return "left";
+  if(i>=21 && i<=29) return "top";
+  if(i>=31 && i<=39) return "right";
+  return "corner";
+}
+const CORNER_GLYPH = {0:"➜",10:"⛓",20:"🅿",30:"👮"};
+
+function buildBoard(){
+  const b = $("#board");
+  b.innerHTML = "";
+  for(let i=0;i<40;i++){
+    const s = BOARD[i];
+    const side = sideOf(i);
+    const d = el("div","sq " + (side==="corner" ? "corner" : side));
+    const [r,c] = gridPos(i);
+    d.style.gridRow = r; d.style.gridColumn = c;
+    d.dataset.i = i;
+
+    if(side === "corner"){
+      d.innerHTML = `<div class="glyph">${CORNER_GLYPH[i]||""}</div><div class="nm">${s.n}</div>
+                     <div class="tokens"></div>`;
+    } else {
+      const gc = s.g ? `var(${GROUPS[s.g].css})` : "transparent";
+      const bar = s.g ? `<div class="bar" style="--gc:${gc}"></div>` : "";
+      const label = s.n;
+      const price = s.price ? `<div class="pr">$${s.price}</div>` : "";
+      const inner = `<div class="nm">${label}</div>${price}`;
+      if(side === "left" || side === "right"){
+        d.innerHTML = `${bar}<div class="stack">${inner}</div>
+                       <div class="own"></div><div class="ownbar"></div>
+                       <div class="builds"></div><div class="tokens"></div>`;
+      } else {
+        d.innerHTML = `${bar}${inner}
+                       <div class="own"></div><div class="ownbar"></div>
+                       <div class="builds"></div><div class="tokens"></div>`;
+      }
+    }
+    b.appendChild(d);
+    SQ[i] = {el:d, tokens:d.querySelector(".tokens"), builds:d.querySelector(".builds")};
+  }
+  const centre = el("div","centre",`
+    <div class="logo">Strategy Lab<span>two doctrines, one board</span></div>
+    <div class="dicebox">
+      <div class="die" id="die1"></div><div class="die" id="die2"></div>
+    </div>
+    <div class="turnpill" id="turnpill">idle</div>
+    <div class="status" id="status">Set both doctrines, then press Run.</div>
+    <div class="supply">
+      <div><span class="lab">Houses left</span><b id="hleft">32</b></div>
+      <div><span class="lab">Hotels left</span><b id="holeft">12</b></div>
+      <div><span class="lab">Pot</span><b id="pot">$0</b></div>
+    </div>`);
+  b.appendChild(centre);
+  for(const id of ["die1","die2"]){
+    const die = centre.querySelector("#"+id);
+    for(let k=0;k<9;k++) die.appendChild(el("div","pip"));
+  }
+}
+const PIPMAP = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function setDie(id,v){
+  const pips = document.querySelectorAll("#"+id+" .pip");
+  pips.forEach((p,k)=>p.classList.toggle("on", PIPMAP[v] && PIPMAP[v].includes(k)));
+}
+
+function paintBoard(g, active){
+  for(const i of OWNABLE){
+    const q = SQ[i], o = g.owner[i];
+    q.el.dataset.own = o < 0 ? "" : String(o+1);
+    q.el.dataset.mortgaged = g.mortgaged[i] ? "1" : "";
+    const lvl = g.level[i];
+    const want = lvl === 5 ? "H" : String(lvl);
+    if(q.builds && q.builds.dataset.state !== want){
+      q.builds.dataset.state = want;
+      q.builds.innerHTML = lvl === 5 ? `<span class="bhotel"></span>`
+        : Array.from({length:lvl},()=>`<span class="bhouse"></span>`).join("");
+    }
+  }
+  for(let i=0;i<40;i++) if(SQ[i].tokens.childElementCount) SQ[i].tokens.innerHTML = "";
+  g.players.forEach(p=>{
+    if(p.bankrupt) return;
+    const t = el("span","tk");
+    t.style.setProperty("--tc", p.idx===0 ? "var(--p1)" : "var(--p2)");
+    if(active && active.id === p.id) t.dataset.active = "1";
+    SQ[p.pos].tokens.appendChild(t);
+  });
+  $("#hleft").textContent = g.houses;
+  $("#holeft").textContent = g.hotels;
+  $("#pot").textContent = "$" + g.pot;
+  $("#hleft").parentElement.classList.toggle("shortage", g.houses === 0);
+}
+
+/* ---------- live player panels ---------- */
+function paintPlayers(g){
+  g.players.forEach(p=>{
+    const host = document.querySelector("#live"+p.id);
+    host.classList.toggle("turn", g.players[g.cur].id === p.id && !g.over);
+    const holdings = myProps(g,p).sort((a,b)=>GROUPS[BOARD[a].g].order-GROUPS[BOARD[b].g].order || a-b);
+    const chips = holdings.map(i=>{
+      const grp = BOARD[i].g, G = GROUPS[grp];
+      const dark = ["yellow","lightblue","util"].includes(grp);
+      const lvl = g.level[i];
+      const bld = lvl===5 ? " ⌂" : (lvl>0 ? " " + "▪".repeat(lvl) : "");
+      const nm = BOARD[i].n.replace(/ (Ave|Pl|RR)$/,"").slice(0,13);
+      return `<span class="hchip${hasMonopoly(g,p,grp)?" mono":""}${g.mortgaged[i]?" mtg":""}"
+        style="--hc:var(${G.css});--htx:${dark?"#12201A":"#fff"}">${nm}<span class="b">${bld}</span></span>`;
+    }).join("");
+    const monos = GROUP_KEYS.filter(k=>hasMonopoly(g,p,k));
+    const cols = p.cfg.priority.length
+      ? p.cfg.priority.map(k=>GROUPS[k].name).join(" + ") : "no colour bias";
+    host.innerHTML = `
+      <div class="top">
+        <span class="token-dot">${p.id}</span>
+        <h3>${PNAMES[p.idx]}</h3>
+        <span class="cash num">${money(p.cash)}</span>
+      </div>
+      <div class="doctrine">
+        <span class="dlab">Playing</span>
+        <span class="dval">${cols} · ${HOUSE_LABELS[p.cfg.houseTarget].toLowerCase()} ·
+          ${ACQUIRE_STRATS[p.cfg.acquire].name} · ${TRADE_STRATS[p.cfg.trade].name}</span>
+      </div>
+      <div class="metrics">
+        <div title="Cash, plus the face price of every unmortgaged deed, plus every dollar spent on buildings still standing. Mortgaged deeds count as zero. Breaks a tie if the turn cap is reached."><div class="k">Net worth</div><div class="v">${money(netWorth(g,p))}</div></div>
+        <div title="Complete colour groups held right now — the only way to build."><div class="k">Sets</div><div class="v">${monos.length}${monos.length?" · "+monos.map(k=>GROUPS[k].short).join(" "):""}</div></div>
+        <div title="Total rent collected from the opponent so far this game."><div class="k">Rent in</div><div class="v">${money(p.stats.rentGot)}</div></div>
+      </div>
+      <div class="metrics">
+        <div><div class="k">Position</div><div class="v">${p.jail?"Jail":BOARD[p.pos].n.slice(0,14)}</div></div>
+        <div><div class="k">Built</div><div class="v">${p.stats.housesBuilt}h / ${p.stats.hotelsBuilt}⌂</div></div>
+        <div><div class="k">Deals done</div><div class="v">${p.stats.tradesAccepted + p.stats.tradesTaken}</div></div>
+      </div>
+      <div class="holdings">${chips || '<span class="nothing">No deeds held.</span>'}</div>`;
+  });
+}
+
+/* ---------- deal table ticker ---------- */
+const tradeFeed = [];
+function chipFor(i){
+  const grp = BOARD[i].g, G = GROUPS[grp];
+  const dark = ["yellow","lightblue","util"].includes(grp);
+  return `<span class="hchip" style="--hc:var(${G.css});--htx:${dark?"#12201A":"#fff"}">${BOARD[i].n.replace(/ (Ave|Pl|RR)$/,"")}</span>`;
+}
+function pushTrade(offer, accepted){
+  tradeFeed.unshift({offer, accepted});
+  if(tradeFeed.length > 4) tradeFeed.pop();
+  $("#trades").innerHTML = tradeFeed.map(({offer,accepted})=>{
+    const cashChip = offer.cash ? `<span class="cashleg">${offer.cash>0?"+":"−"}$${Math.abs(offer.cash)}</span>` : "";
+    const getSide = offer.get.map(chipFor).join("") ;
+    const giveSide = offer.give.map(chipFor).join("") + (offer.cash>0?cashChip:"");
+    const getSide2 = getSide + (offer.cash<0?cashChip:"");
+    return `<div class="trade">
+      <div class="thead">
+        <span class="badge p${offer.from}">P${offer.from}</span>
+        <span class="arrow">offers</span>
+        <span class="badge p${offer.to}">P${offer.to}</span>
+        <span class="stamp ${accepted?"ok":"no"}">${accepted?"Accepted":"Declined"}</span>
+      </div>
+      <div class="legs">
+        <div class="leg">${giveSide || '<span class="nothing">nothing</span>'}</div>
+        <div class="swap">⇄</div>
+        <div class="leg">${getSide2}</div>
+      </div>
+      <div class="tradenote">${offer.note}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- log ---------- */
+/* Every deed name and colour-group name, longest first so that
+   "Pennsylvania Ave" is matched before any shorter name inside it. */
+const DEED_INK = (() => {
+  const pairs = OWNABLE.map(i => [BOARD[i].n, BOARD[i].g])
+    .concat(GROUP_KEYS.map(k => [GROUPS[k].name, k]))
+    .sort((a,b) => b[0].length - a[0].length);
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return {
+    map: new Map(pairs),
+    re: new RegExp("(" + pairs.map(x => esc(x[0])).join("|") + ")", "g")
+  };
+})();
+function inkNames(html){
+  return html.replace(DEED_INK.re, m =>
+    `<span class="pname" style="color:var(--t-${DEED_INK.map.get(m)})">${m}</span>`);
+}
+/* Tag every mention of a player with the cash they held going INTO the event.
+   Where the event moved their money, the resulting balance follows the arrow.
+   Possessives ("P1's offer") keep their apostrophe. */
+function annotateCash(e){
+  if(!e.cash) return e.msg;
+  return e.msg.replace(/\bP([12])(['’]s)?/g, (_all, n, poss) => {
+    const k = +n - 1;
+    const before = e.cash[k];
+    const after = e.after ? e.after[k] : before;
+    const tag = after !== before
+      ? `${money(before)} <span class="arrow">&rarr;</span> ${money(after)}`
+      : `${money(before)}`;
+    return `P${n} <span class="cashtag">(${tag})</span>${poss || ""}`;
+  });
+}
+let logSeen = 0;
+function resetLog(){ $("#log").innerHTML = ""; logSeen = 0; tradeFeed.length = 0;
+  $("#trades").innerHTML = '<div class="trade"><span class="nothing">No offers yet.</span></div>'; }
+function drainLog(g){
+  const host = $("#log");
+  const frag = document.createDocumentFragment();
+  for(; logSeen < g.events.length; logSeen++){
+    const e = g.events[logSeen];
+    const msg = inkNames(annotateCash(e));
+    const li = el("li", e.big ? "big" : "", `<span class="t">${Math.ceil(e.turn/2)}</span><span class="m">${msg}</span>`);
+    if(e.p) li.dataset.p = e.p;
+    li.dataset.type = e.type;
+    frag.appendChild(li);
+  }
+  host.appendChild(frag);
+  while(host.childElementCount > 260) host.removeChild(host.firstChild);
+  host.scrollTop = host.scrollHeight;
+}
+
+/* ==================================================================
+   AGGREGATION
+   ================================================================== */
+function newAgg(){
+  return {
+    games:0, wins:[0,0], draws:0, turnsSum:0, capped:0, busted:0,
+    netSum:[0,0], peakSum:[0,0],
+    ledger:[blankLedger(), blankLedger()],
+    st:[0,1].map(()=>({rentGot:0,rentPaid:0,bought:0,auctionsWon:0,housesBuilt:0,hotelsBuilt:0,
+                       tradesProposed:0,tradesAccepted:0,tradesReceived:0,tradesTaken:0,timesJailed:0,
+                       setsPeak:0, shortageCaused:0, monos:0})),
+    shortageSum:0, shortageGames:0
+  };
+}
+function collect(a,g){
+  a.games++;
+  a.turnsSum += Math.ceil(g.turn/2);
+  if(g.reason === "turn cap") a.capped++; else a.busted++;
+  if(g.winner === 0) a.draws++; else a.wins[g.winner-1]++;
+  if(g.shortageTurns > 0){ a.shortageGames++; a.shortageSum += Math.ceil(g.shortageTurns/2); }
+  g.players.forEach((p,pi)=>{
+    a.netSum[pi] += netWorth(g,p);
+    a.peakSum[pi] += p.stats.maxNet;
+    for(const k of GROUP_KEYS){
+      const s = p.ledger[k], t = a.ledger[pi][k];
+      for(const f in s) t[f] += s[f];
+    }
+    const S = a.st[pi];
+    for(const k in S) if(k !== "monos") S[k] += (p.stats[k] || 0);
+    S.monos += GROUP_KEYS.filter(k=>hasMonopoly(g,p,k)).length;
+  });
+}
+
+/* ==================================================================
+   RESULTS
+   ================================================================== */
+function ratio(rent, invest){
+  if(invest <= 1) return null;
+  return rent/invest;
+}
+function roiCell(r){
+  if(r === null) return `<td class="n" style="color:var(--text-3)">—</td>`;
+  const cls = r >= 1 ? "up" : "dn";
+  return `<td class="n"><span class="roival ${cls}">${r.toFixed(2)}×</span></td>`;
+}
+
+function renderResults(a, cfg){
+  if(!a.games) return;
+  $("#results").classList.add("on");
+  const w1 = a.wins[0]/a.games, w2 = a.wins[1]/a.games, dr = a.draws/a.games;
+  $("#ledgersub").textContent =
+    `${a.games.toLocaleString()} game${a.games>1?"s":""} · ${(a.turnsSum/a.games).toFixed(1)} turns each on average · ` +
+    `${a.busted} decided by bankruptcy, ${a.capped} by net worth at the cap`;
+
+  $("#headline").innerHTML = `
+    <div><div class="k">Player 1 wins</div><div class="v p1">${pct(w1)}</div>
+      <div class="s">${a.wins[0].toLocaleString()} of ${a.games.toLocaleString()} · ${doctrineLine(0)}</div></div>
+    <div><div class="k">Player 2 wins</div><div class="v p2">${pct(w2)}</div>
+      <div class="s">${a.wins[1].toLocaleString()} of ${a.games.toLocaleString()} · ${doctrineLine(1)}</div></div>
+    <div><div class="k">Edge</div><div class="v ${w1>w2?"p1":"p2"}">${(Math.abs(w1-w2)*100).toFixed(1)} pts</div>
+      <div class="s">${w1===w2?"level":"to Player "+(w1>w2?1:2)}${a.draws?` · ${pct(dr)} drawn`:""}</div></div>
+    <div><div class="k">Avg final net worth</div>
+      <div class="v" style="font-size:1.5rem"><span class="p1" style="color:var(--p1)">${money(a.netSum[0]/a.games)}</span>
+      <span style="color:var(--text-3);font-size:1rem"> / </span><span style="color:var(--p2)">${money(a.netSum[1]/a.games)}</span></div>
+      <div class="s">P1 / P2</div></div>
+    <div><div class="k">Housing shortage</div><div class="v">${a.shortageGames?pct(a.shortageGames/a.games):"0%"}</div>
+      <div class="s">${a.shortageGames? (a.shortageSum/a.shortageGames).toFixed(1)+" turns locked out, when it happened" : "the pool never ran dry"}</div></div>`;
+
+  const wb = $("#winbar");
+  wb.innerHTML =
+    `<div class="w1" style="flex-basis:${w1*100}%">${w1>0.09?"P1 "+pct(w1):""}</div>` +
+    (dr>0?`<div class="wd" style="flex-basis:${dr*100}%">${dr>0.09?"Draw":""}</div>`:"") +
+    `<div class="w2" style="flex-basis:${w2*100}%">${w2>0.09?"P2 "+pct(w2):""}</div>`;
+
+  /* ---- colour ROI ---- */
+  const rows = [];
+  const maxR = Math.max(0.01, ...GROUP_KEYS.flatMap(k=>[0,1].map(pi=>ratio(a.ledger[pi][k].rent,a.ledger[pi][k].out)||0)));
+  for(const k of GROUP_KEYS){
+    const L0 = a.ledger[0][k], L1 = a.ledger[1][k];
+    if(L0.out < 1 && L1.out < 1) continue;
+    const r0 = ratio(L0.rent,L0.out), r1 = ratio(L1.rent,L1.out);
+    const t0 = ratio(L0.rent+L0.sales,L0.out), t1 = ratio(L1.rent+L1.sales,L1.out);
+    const tag = pi => doctrine[pi].priority.includes(k) ? `<span class="badge p${pi+1}">P${pi+1} target</span>` : "";
+    rows.push(`<tr>
+      <td><span class="swatch" style="--sw:var(${GROUPS[k].css})"></span>${GROUPS[k].name} ${tag(0)}${tag(1)}</td>
+      <td class="n">${money(L0.out/a.games)}</td><td class="n">${money(L0.rent/a.games)}</td>${roiCell(r0)}
+      <td style="width:70px"><div class="roibar p1"><i style="width:${clamp((r0||0)/maxR*100,0,100)}%"></i></div></td>
+      ${roiCell(t0)}
+      <td class="n" style="border-left:1px solid var(--rule)">${money(L1.out/a.games)}</td><td class="n">${money(L1.rent/a.games)}</td>${roiCell(r1)}
+      <td style="width:70px"><div class="roibar p2"><i style="width:${clamp((r1||0)/maxR*100,0,100)}%"></i></div></td>
+      ${roiCell(t1)}
+    </tr>`);
+  }
+  $("#grouproi").innerHTML = `<table>
+    <thead><tr><th></th>
+      <th colspan="5">Player 1 &mdash; per game</th>
+      <th colspan="5" style="border-left:1px solid var(--rule)">Player 2 &mdash; per game</th></tr>
+      <tr><th>Colour</th><th>Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th>
+      <th style="border-left:1px solid var(--rule)">Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th></tr></thead>
+    <tbody>${rows.join("") || `<tr><td colspan="11" class="nothing">Nobody bought anything.</td></tr>`}</tbody></table>
+    <p class="footnote"><b>Rent ROI</b> is rent received per dollar committed. <b>Total ROI</b> adds back capital
+    recovered &mdash; mortgages, buildings sold, and cash taken in when those deeds were traded away.</p>`;
+
+  /* ---- building ROI ---- */
+  const brows = [0,1].map(pi=>{
+    let bo=0, br=0, bs=0;
+    for(const k of GROUP_KEYS){
+      bo += a.ledger[pi][k].buildOut; br += a.ledger[pi][k].buildRent; bs += a.ledger[pi][k].buildSales;
+    }
+    const r = ratio(br,bo), t = ratio(br+bs,bo);
+    const S = a.st[pi];
+    return `<tr class="${r!==null && r>=1?"win":""}">
+      <td><span class="badge p${pi+1}">P${pi+1}</span> ${HOUSE_LABELS[doctrine[pi].houseTarget]} each</td>
+      <td class="n">${(S.housesBuilt/a.games).toFixed(1)}</td>
+      <td class="n">${(S.hotelsBuilt/a.games).toFixed(1)}</td>
+      <td class="n">${money(bo/a.games)}</td>
+      <td class="n">${money(br/a.games)}</td>
+      ${roiCell(r)}${roiCell(t)}</tr>`;
+  });
+  $("#buildroi").innerHTML = `<table>
+    <thead><tr><th>Doctrine</th><th>Houses</th><th>Hotels</th><th>Building capital</th>
+    <th>Rent from buildings</th><th>Rent ROI</th><th>Total ROI</th></tr></thead>
+    <tbody>${brows.join("")}</tbody></table>
+    <p class="footnote">“Rent from buildings” counts only the part of each rent cheque above what the same
+    property would have charged undeveloped, so it isolates what the houses themselves earned. Total ROI adds
+    back the half-price refund on any buildings sold under pressure.</p>`;
+
+  /* ---- trades ---- */
+  $("#tradestats").innerHTML = `<table>
+    <thead><tr><th>Player</th><th>Strategy</th><th>Offers made</th><th>Got a yes</th><th>Offers seen</th><th>Said yes</th><th>Sets held at end</th></tr></thead>
+    <tbody>${[0,1].map(pi=>{
+      const S = a.st[pi];
+      return `<tr><td><span class="badge p${pi+1}">P${pi+1}</span></td>
+        <td>${TRADE_STRATS[doctrine[pi].trade].name}</td>
+        <td class="n">${(S.tradesProposed/a.games).toFixed(1)}</td>
+        <td class="n">${(S.tradesAccepted/a.games).toFixed(1)}</td>
+        <td class="n">${(S.tradesReceived/a.games).toFixed(1)}</td>
+        <td class="n">${(S.tradesTaken/a.games).toFixed(1)}</td>
+        <td class="n">${(S.setsPeak/a.games).toFixed(2)}</td></tr>`;
+    }).join("")}</tbody></table>
+    <p class="footnote">Figures are per game, and one offer is considered per player per turn. “Sets held”
+    is the most complete colours that player ever held at once, measured before any bankruptcy transfer.</p>`;
+
+  /* ---- shape ---- */
+  $("#shapestats").innerHTML = `<table>
+    <thead><tr><th>Measure</th><th>Player 1</th><th>Player 2</th></tr></thead>
+    <tbody>
+      ${shapeRow("Rent collected", pi=>money(a.st[pi].rentGot/a.games))}
+      ${shapeRow("Rent paid out", pi=>money(a.st[pi].rentPaid/a.games))}
+      ${shapeRow("Bought from the bank", pi=>(a.st[pi].bought/a.games).toFixed(1))}
+      ${shapeRow("Won at auction", pi=>(a.st[pi].auctionsWon/a.games).toFixed(1))}
+      ${shapeRow("Peak net worth", pi=>money(a.peakSum[pi]/a.games))}
+      ${shapeRow("Final net worth", pi=>money(a.netSum[pi]/a.games))}
+      ${shapeRow("Trips to jail", pi=>(a.st[pi].timesJailed/a.games).toFixed(1))}
+    </tbody></table>`;
+
+  $("#method").innerHTML =
+    `Method: every buy, bid and trade is priced off the long-run landing frequency of each square, the player's ` +
+    `own target house level, and how likely they are to end up holding the whole colour. <b>Committed</b> is every ` +
+    `dollar that went into a colour — deed price, auction price, house money, unmortgage fees and cash handed over ` +
+    `in trades. <b>Rent ROI</b> above 1.00× means the colour paid for itself in rent inside the game; ` +
+    `<b>Total ROI</b> also credits capital that came back out (mortgages, buildings sold, cash taken in when the ` +
+    `deeds were traded away), which is the fairer read on a colour that was flipped rather than farmed. ` +
+    `Player 1 moves first, worth roughly two points of win rate on its own — run the same pairing with the ` +
+    `doctrines swapped to see past it.`;
+}
+function shapeRow(label, f){
+  return `<tr><td>${label}</td><td class="n">${f(0)}</td><td class="n">${f(1)}</td></tr>`;
+}
+function doctrineLine(pi){
+  const d = doctrine[pi];
+  return (d.priority.length ? d.priority.map(k=>GROUPS[k].name).join("+") : "no colour bias")
+    + ", " + HOUSE_LABELS[d.houseTarget].toLowerCase();
+}
+
+/* ==================================================================
+   RUNNER
+   ================================================================== */
+/* idle → running → paused → running → … ; reset returns to idle.
+   Pausing parks the run loop inside gate() without unwinding it, so Resume
+   picks up the same batch mid-game rather than starting over. */
+let runState = "idle", stopFlag = false, pauseFlag = false, runPromise = null;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function gate(){ while(pauseFlag && !stopFlag) await sleep(90); }
+
+function setButtons(){
+  const run = $("#run");
+  run.disabled = runState === "running";
+  run.textContent = runState === "paused" ? "Resume" : "Run";
+  $("#pause").disabled = runState !== "running";
+  $("#reset").disabled = runState === "idle" && !$("#results").classList.contains("on")
+                         && $("#log").childElementCount === 0;
+}
+
+/* Every game gets its own seed drawn straight from the platform CSPRNG, rather
+   than being derived arithmetically from one base — nearby seeds fed to a small
+   PRNG can produce correlated openings, and a batch of a thousand games should
+   be a thousand independent games. Falls back only if Web Crypto is missing. */
+function randomSeed(){
+  try{
+    const a = new Uint32Array(1);
+    (self.crypto || self.msCrypto).getRandomValues(a);
+    return a[0] >>> 0;
+  }catch(err){
+    return (((Math.random()*4294967296) >>> 0) ^ (Date.now() >>> 0)) >>> 0;
+  }
+}
+
+function readCfg(){
+  const gamesN = clamp(parseInt($("#games").value)||1, 1, 20000);
+  return {
+    games: gamesN,
+    turnCap: clamp(parseInt($("#turncap").value)||300, 20, 5000),
+    delay: clamp(parseInt($("#delay").value)||0, 0, 5000),
+    render: $("#render").checked,
+    rules: {
+      auctions: $("#ruleAuction").checked,
+      freeParkingPot: $("#ruleFP").checked,
+      doubleOnGo: $("#ruleDoubleGo").checked
+    },
+    players: doctrine.map(d=>({priority:d.priority.slice(), houseTarget:d.houseTarget,
+                               acquire:d.acquire, trade:d.trade}))
+  };
+}
+function setProgress(f, show){
+  const p = $("#progress");
+  p.classList.toggle("on", !!show);
+  p.firstElementChild.style.width = (f*100).toFixed(1) + "%";
+}
+function setStatus(t){ $("#status").textContent = t; }
+function setPill(t){ $("#turnpill").textContent = t; }
+
+async function runVisual(cfg, agg){
+  for(let n=0; n<cfg.games && !stopFlag; n++){
+    const g = newGame(cfg, randomSeed());
+    resetLog();
+    setPill(`game ${n+1} / ${cfg.games}`);
+    paintBoard(g); paintPlayers(g);
+    const it = playGame(g);
+    let step, tick = 0;
+    while(!(step = it.next()).done){
+      if(pauseFlag) await gate();
+      if(stopFlag) break;
+      const v = step.value;
+      if(v.k === "dice"){ setDie("die1",v.d1); setDie("die2",v.d2); }
+      if(v.k === "trade"){ pushTrade(v.offer, v.accepted); }
+      drainLog(g);
+      paintBoard(g, v.p);
+      paintPlayers(g);
+      const last = g.events[g.events.length-1];
+      setStatus(last ? last.msg : "");
+      setPill(`game ${n+1}/${cfg.games} · turn ${Math.ceil(g.turn/2)}`);
+      if(cfg.delay > 0){
+        await sleep(v.k === "move" || v.k === "trade" ? cfg.delay : Math.max(4, cfg.delay*0.35));
+      } else if((++tick % 60) === 0) await sleep(0);
+      setProgress((n + Math.min(1, g.turn/(cfg.turnCap*2)))/cfg.games, cfg.games>1);
+    }
+    if(stopFlag && !g.over) break;
+    collect(agg, g);
+    renderResults(agg, cfg);
+    setButtons();
+    if(cfg.games > 1 && !stopFlag) await sleep(Math.min(600, 120 + cfg.delay));
+  }
+}
+
+async function runHeadless(cfg, agg){
+  setStatus("Running silently…");
+  setProgress(0, true);
+  let lastGame = null;
+  for(let n=0; n<cfg.games && !stopFlag; n++){
+    if(pauseFlag) await gate();
+    if(stopFlag) break;
+    const g = newGame(cfg, randomSeed());
+    const it = playGame(g);
+    while(!it.next().done){}
+    collect(agg, g);
+    lastGame = g;
+    if(n % 20 === 0 || n === cfg.games-1){
+      setProgress((n+1)/cfg.games, true);
+      setPill(`${n+1} / ${cfg.games}`);
+      await sleep(0);
+    }
+  }
+  if(lastGame){
+    resetLog();
+    lastGame.events = lastGame.events.slice(-120);
+    logSeen = 0;
+    drainLog(lastGame);
+    paintBoard(lastGame); paintPlayers(lastGame);
+    setStatus(`Final position of game ${cfg.games}. ` +
+      (lastGame.winner ? `Player ${lastGame.winner} won by ${lastGame.reason}.` : "Dead heat at the cap."));
+  }
+}
+
+$("#run").onclick = () => {
+  if(runState === "running") return;
+  if(runState === "paused"){          // resume the batch already in flight
+    pauseFlag = false; runState = "running";
+    setButtons(); setStatus("Resumed.");
+    return;
+  }
+  runState = "running"; stopFlag = false; pauseFlag = false;
+  setButtons();
+  const cfg = readCfg();
+  const agg = newAgg();
+  $("#results").classList.remove("on");
+  resetLog();
+  runPromise = (async () => {
+    try{
+      if(cfg.render) await runVisual(cfg, agg);
+      else await runHeadless(cfg, agg);
+      if(agg.games) renderResults(agg, cfg);
+      if(stopFlag) setPill("reset");
+      else if(!cfg.render) setPill(`${agg.games} games`);
+      else setPill("done");
+    } catch(err){
+      setStatus("Simulation error: " + err.message);
+      console.error(err);
+    }
+    setProgress(1, false);
+    runState = "idle"; pauseFlag = false;
+    setButtons();
+  })();
+};
+
+$("#pause").onclick = () => {
+  if(runState !== "running") return;
+  pauseFlag = true; runState = "paused";
+  setButtons();
+  setStatus("Paused. Press Resume to carry on from here.");
+  setPill("paused");
+};
+
+/* Reset abandons whatever is in flight, waits for the loop to actually unwind
+   so it cannot repaint over a cleared board, then returns everything to its
+   opening state. Doctrine and rule settings are deliberately left alone. */
+$("#reset").onclick = async () => {
+  stopFlag = true; pauseFlag = false;
+  $("#reset").disabled = true;
+  if(runPromise){ try{ await runPromise; }catch(err){} runPromise = null; }
+  runState = "idle"; stopFlag = false;
+  resetLog();
+  $("#results").classList.remove("on");
+  setProgress(0, false);
+  idleBoard();
+  setButtons();
+};
+
+/* ---------- official rules ---------- */
+const OFFICIAL_RULES = { ruleAuction:true, ruleFP:false, ruleDoubleGo:false };
+/* The reset button being live is itself the signal that something was changed. */
+function syncRuleState(){
+  const official = Object.keys(OFFICIAL_RULES).every(id => $("#"+id).checked === OFFICIAL_RULES[id]);
+  $("#ruleReset").disabled = official;
+}
+$("#ruleReset").onclick = () => {
+  for(const id in OFFICIAL_RULES) $("#"+id).checked = OFFICIAL_RULES[id];
+  syncRuleState();
+};
+for(const id in OFFICIAL_RULES) $("#"+id).addEventListener("change", syncRuleState);
+syncRuleState();
+
+/* auto-scale delay default when a big batch is typed */
+$("#games").addEventListener("change", () => {
+  const n = parseInt($("#games").value)||1;
+  if(n > 25 && $("#render").checked){ $("#render").checked = false; }
+  if(n > 25) $("#delay").value = 0;
+});
+
+/* ---------- boot ---------- */
+buildSetup();
+buildBoard();
+function idleBoard(){
+  const g = newGame(readCfg(), randomSeed());
+  paintBoard(g); paintPlayers(g);
+  setDie("die1",3); setDie("die2",4);
+  setPill("idle");
+  setStatus("Set both doctrines, then press Run.");
+}
+idleBoard();
+setButtons();
+</script>
