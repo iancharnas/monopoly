@@ -590,7 +590,17 @@ td{padding:7px 10px;border-bottom:1px solid var(--rule-soft);vertical-align:midd
 tbody tr:last-child td{border-bottom:0}
 td.n{font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--sw);border:1px solid rgba(0,0,0,.3);margin-right:7px;vertical-align:-1px}
-.roibar{position:relative;height:16px;background:var(--panel-2);border-radius:2px;min-width:70px}
+.roibar{position:relative;height:16px;background:var(--panel-2);border-radius:2px;min-width:56px}
+/* hairline version, drawn beneath the figure inside its own cell */
+.roimini{
+  display:block;height:3px;border-radius:2px;background:var(--panel-2);
+  position:relative;margin-top:4px;min-width:44px;
+}
+.roimini i{position:absolute;left:0;top:0;bottom:0;background:var(--bc);border-radius:2px}
+.roimini.p1 i{--bc:var(--p1)}
+.roimini.p2 i{--bc:var(--p2)}
+.roimini.p3 i{--bc:var(--p3)}
+.roimini.p4 i{--bc:var(--p4)}
 .roibar i{position:absolute;left:0;top:0;bottom:0;background:var(--bc);border-radius:2px}
 .roibar.p1 i{--bc:var(--p1)}
 .roibar.p2 i{--bc:var(--p2)}
@@ -601,8 +611,16 @@ td.n{font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums;text-
 .roival.dn{color:var(--bad)}
 tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
 .footnote{color:var(--text-3);font-size:var(--step--1);margin-top:12px;max-width:80ch;line-height:1.5}
-/* one small table per colour, a row per player — reads the same at any table size */
-.colourblock{margin-bottom:18px}
+/* One small table per colour, a row per player — reads the same at any table
+   size. Each block sits in its own min-width:0 scroll box: a grid item that
+   cannot shrink below its content will otherwise overlap the track beside it,
+   which is exactly what six columns in a 340px track did. */
+.cbwrap{min-width:0;overflow-x:auto;margin-bottom:20px}
+.colourblock{margin-bottom:0;min-width:380px}
+/* let the figures claim what they need and give the slack to the first column,
+   so nothing is ever compressed past its content */
+.colourblock td.n,.colourblock th{width:1%}
+.colourblock td.pl,.colourblock th:first-child{width:auto}
 .colourblock .grpname{
   font-size:.72rem;letter-spacing:.06em;text-transform:none;color:var(--text);
   font-weight:700;border-bottom:1px solid var(--rule);padding-bottom:7px;
@@ -612,8 +630,10 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
   font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;
   color:var(--brass);border:1px solid currentColor;border-radius:2px;padding:1px 4px;margin-left:4px;
 }
-#grouproi{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0 26px;align-items:start}
-#grouproi .footnote{grid-column:1/-1}
+/* One colour per full-width row. Splitting these into side-by-side columns is
+   what squeezed the tables until their cells overlapped. */
+#grouproi{display:block}
+#grouproi .footnote{margin-top:2px}
 .footnote a{color:var(--brass)}
 .badge{display:inline-block;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
 .badge.p1{color:var(--p1)}
@@ -665,7 +685,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
       <legend>Board</legend>
       <div class="frow">
         <label class="switch"><input type="checkbox" id="render" checked><span>Visualize play</span></label>
-        <label class="switch"><input type="checkbox" id="alternate"><span>Alternate first move</span></label>
+        <label class="switch"><input type="checkbox" id="alternate" checked><span>Alternate first move</span></label>
       </div>
     </fieldset>
     <fieldset class="fgroup">
@@ -735,7 +755,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
     <div class="ledgerstack">
       <div class="card">
         <h3>Return on colour &mdash; rent earned per dollar committed</h3>
-        <div class="body tscroll" id="grouproi"></div>
+        <div class="body" id="grouproi"></div>
       </div>
       <div class="card">
         <h3>Return on building &mdash; the 3-house question</h3>
@@ -2444,6 +2464,14 @@ function ratio(rent, invest){
   if(invest <= 1) return null;
   return rent/invest;
 }
+/* Rent ROI carries its own bar as a hairline under the figure, so the table
+   needs one fewer column. A separate fixed-width bar column was the thing
+   that made six nowrap columns impossible to fit. */
+function roiBarCell(r, maxR, pi){
+  if(r === null) return `<td class="n" style="color:var(--text-3)">&mdash;</td>`;
+  return `<td class="n"><span class="roival ${r>=1?"up":"dn"}">${r.toFixed(2)}&times;</span>` +
+         `<span class="roimini p${pi+1}"><i style="width:${clamp(r/maxR*100,0,100)}%"></i></span></td>`;
+}
 function roiCell(r){
   if(r === null) return `<td class="n" style="color:var(--text-3)">—</td>`;
   const cls = r >= 1 ? "up" : "dn";
@@ -2489,24 +2517,23 @@ function renderResults(a, cfg){
     const rows = seatList.map(pi=>{
       const L = a.ledger[pi][k];
       if(L.out < 1) return `<tr><td class="pl"><span class="badge p${pi+1}">P${pi+1}</span></td>
-        <td colspan="5" style="color:var(--text-3)">never bought in</td></tr>`;
+        <td colspan="4" style="color:var(--text-3)">never bought in</td></tr>`;
       const r = ratio(L.rent,L.out), t = ratio(L.rent+L.sales,L.out);
       const tag = doctrine[pi].priority.includes(k) ? ` <span class="tgt">target</span>` : "";
       return `<tr>
         <td class="pl"><span class="badge p${pi+1}">P${pi+1}</span>${tag}</td>
         <td class="n">${money(L.out/a.games)}</td>
         <td class="n">${money(L.rent/a.games)}</td>
-        ${roiCell(r)}
-        <td style="width:90px"><div class="roibar p${pi+1}"><i style="width:${clamp((r||0)/maxR*100,0,100)}%"></i></div></td>
+        ${roiBarCell(r, maxR, pi)}
         ${roiCell(t)}</tr>`;
     }).join("");
-    blocks.push(`<table class="colourblock">
+    blocks.push(`<div class="cbwrap"><table class="colourblock">
       <thead>
-        <tr><th colspan="6" class="grpname">
+        <tr><th colspan="5" class="grpname">
           <span class="swatch" style="--sw:var(${GROUPS[k].css})"></span>${GROUPS[k].name}</th></tr>
-        <tr><th>Player</th><th>Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th></tr>
+        <tr><th>Player</th><th>Committed</th><th>Rent in</th><th>Rent ROI</th><th>Total ROI</th></tr>
       </thead>
-      <tbody>${rows}</tbody></table>`);
+      <tbody>${rows}</tbody></table></div>`);
   }
   $("#grouproi").innerHTML = (blocks.join("") || `<span class="nothing">Nobody bought anything.</span>`) +
     `<p class="footnote"><b>Committed</b> is every dollar that went into the colour \u2014 deed price, auction
