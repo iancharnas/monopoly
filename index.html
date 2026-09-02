@@ -1882,11 +1882,12 @@ const $ = s => document.querySelector(s);
 const el = (t,c,h) => { const e = document.createElement(t); if(c) e.className = c; if(h!=null) e.innerHTML = h; return e; };
 
 /* ---------- doctrine state ---------- */
-/* Opening experiment: orange against dark blue, both building to hotels and
-   identical in every other respect, so the colour is the only variable. */
+/* Opening position: two identical doctrines with no colour bias at all, so the
+   first run is a control — whatever separates the players is the dice, and
+   every later result has a baseline to be measured against. */
 const doctrine = [
-  {priority:["orange"],   houseTarget:5, acquire:"monopoly", trade:"fair"},
-  {priority:["darkblue"], houseTarget:5, acquire:"monopoly", trade:"fair"}
+  {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"},
+  {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"}
 ];
 const PNAMES = ["Player 1","Player 2"];
 
