@@ -20,6 +20,8 @@
   --brass-soft:#EBDDC1;
   --p1:#1D6E7C;
   --p2:#B4632A;
+  --p3:#6B4E9E;
+  --p4:#4C7A2B;
   --good:#2E7D4F;
   --warn:#B07C13;
   --bad:#A93226;
@@ -96,6 +98,8 @@
     --t-util:#A2C7D5;
     --p1:#4FB3C2;
     --p2:#E09750;
+    --p3:#A98BE0;
+    --p4:#8DBE5E;
     --good:#57BE83;
     --warn:#D9AE4A;
     --bad:#E0715F;
@@ -130,6 +134,8 @@
   --t-util:#A2C7D5;
   --p1:#4FB3C2;
   --p2:#E09750;
+  --p3:#A98BE0;
+  --p4:#8DBE5E;
   --good:#57BE83;
   --warn:#D9AE4A;
   --bad:#E0715F;
@@ -188,8 +194,7 @@ button{font:inherit;cursor:pointer}
 .sechead p{margin:0;color:var(--text-3);font-size:var(--step--1)}
 
 /* ============ DEED CARDS (strategy setup) ============ */
-.setup{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,1.6vw,22px)}
-@media (max-width:900px){.setup{grid-template-columns:1fr}}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(12px,1.6vw,22px)}
 
 .deed{
   background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
@@ -198,6 +203,8 @@ button{font:inherit;cursor:pointer}
 }
 .deed[data-p="1"]{--pc:var(--p1)}
 .deed[data-p="2"]{--pc:var(--p2)}
+.deed[data-p="3"]{--pc:var(--p3)}
+.deed[data-p="4"]{--pc:var(--p4)}
 .deed-head{
   padding:14px 18px 12px;border-bottom:1px solid var(--rule-soft);
   display:flex;align-items:center;gap:10px;background:var(--panel-2);
@@ -360,10 +367,15 @@ select:hover,input:hover{border-color:var(--text-3)}
 }
 .sq[data-own="1"] .own{opacity:.16;--oc:var(--p1)}
 .sq[data-own="2"] .own{opacity:.16;--oc:var(--p2)}
+.sq[data-own="3"] .own{opacity:.16;--oc:var(--p3)}
+.sq[data-own="4"] .own{opacity:.16;--oc:var(--p4)}
 .sq .ownbar{position:absolute;top:0;bottom:0;right:0;width:0;background:var(--oc);transition:width .2s}
-.sq[data-own="1"] .ownbar,.sq[data-own="2"] .ownbar{width:7%}
+.sq[data-own="1"] .ownbar,.sq[data-own="2"] .ownbar,
+.sq[data-own="3"] .ownbar,.sq[data-own="4"] .ownbar{width:7%}
 .sq[data-own="1"] .ownbar{--oc:var(--p1)}
 .sq[data-own="2"] .ownbar{--oc:var(--p2)}
+.sq[data-own="3"] .ownbar{--oc:var(--p3)}
+.sq[data-own="4"] .ownbar{--oc:var(--p4)}
 .sq[data-mortgaged="1"]{background:repeating-linear-gradient(45deg,var(--board-space),var(--board-space) 3px,#D8D2BE 3px,#D8D2BE 6px)}
 
 /* buildings */
@@ -377,7 +389,7 @@ select:hover,input:hover{border-color:var(--text-3)}
 .bhotel{width:44%;height:52%;background:#C0392B;border:.5px solid #4A130C;border-radius:.5px}
 
 /* tokens */
-.tokens{position:absolute;bottom:2%;left:0;right:0;display:flex;justify-content:center;gap:4%;z-index:5}
+.tokens{position:absolute;bottom:2%;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:3%;z-index:5}
 .sq.corner .tokens{bottom:6%}
 .tk{
   width:15%;aspect-ratio:1;border-radius:50%;
@@ -387,6 +399,7 @@ select:hover,input:hover{border-color:var(--text-3)}
 }
 .sq.corner .tk{width:11%}
 .tk[data-active="1"]{transform:scale(1.35)}
+.tk[data-out="1"]{opacity:.25;filter:grayscale(1)}
 
 /* board centre */
 .centre{
@@ -421,6 +434,7 @@ select:hover,input:hover{border-color:var(--text-3)}
 
 /* ---- RAIL ---- */
 .rail{display:flex;flex-direction:column;gap:14px}
+#livePanels{display:flex;flex-direction:column;gap:14px}
 .card{
   background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);
   box-shadow:var(--shadow);overflow:hidden;
@@ -435,10 +449,14 @@ select:hover,input:hover{border-color:var(--text-3)}
 .pstat{border-left:4px solid var(--pc)}
 .pstat[data-p="1"]{--pc:var(--p1)}
 .pstat[data-p="2"]{--pc:var(--p2)}
+.pstat[data-p="3"]{--pc:var(--p3)}
+.pstat[data-p="4"]{--pc:var(--p4)}
 .pstat .top{display:flex;align-items:center;gap:9px;padding:11px 13px 9px}
 .pstat .top h3{font-size:var(--step-0);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pstat .top .cash{font-family:"Roboto Mono",monospace;font-weight:700;font-size:var(--step-1);color:var(--pc)}
 .pstat.turn{background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 9%,var(--panel)),var(--panel) 60%)}
+.pstat.out{opacity:.5}
+.pstat.out .cash{font-family:"Archivo",sans-serif;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase}
 /* the doctrine line is words, never money — kept clearly out of the number columns */
 .pstat .doctrine{padding:0 13px 10px;display:flex;gap:8px;align-items:baseline}
 .pstat .dlab{
@@ -547,11 +565,15 @@ select:hover,input:hover{border-color:var(--text-3)}
 .headline .s{font-size:var(--step--1);color:var(--text-2);margin-top:3px}
 .headline .v.p1{color:var(--p1)}
 .headline .v.p2{color:var(--p2)}
+.headline .v.p3{color:var(--p3)}
+.headline .v.p4{color:var(--p4)}
 
 .winbar{display:flex;height:34px;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;margin-top:14px;box-shadow:var(--shadow)}
 .winbar div{display:grid;place-items:center;font-family:"Roboto Mono",monospace;font-weight:700;font-size:var(--step-0);color:#fff;transition:flex-basis .4s;white-space:nowrap;overflow:hidden}
 .winbar .w1{background:var(--p1)}
 .winbar .w2{background:var(--p2)}
+.winbar .w3{background:var(--p3)}
+.winbar .w4{background:var(--p4)}
 .winbar .wd{background:var(--text-3)}
 
 /* Each ledger panel gets the full measure — the colour table alone carries
@@ -572,15 +594,32 @@ td.n{font-family:"Roboto Mono",monospace;font-variant-numeric:tabular-nums;text-
 .roibar i{position:absolute;left:0;top:0;bottom:0;background:var(--bc);border-radius:2px}
 .roibar.p1 i{--bc:var(--p1)}
 .roibar.p2 i{--bc:var(--p2)}
+.roibar.p3 i{--bc:var(--p3)}
+.roibar.p4 i{--bc:var(--p4)}
 .roival{font-family:"Roboto Mono",monospace;font-weight:700}
 .roival.up{color:var(--good)}
 .roival.dn{color:var(--bad)}
 tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
 .footnote{color:var(--text-3);font-size:var(--step--1);margin-top:12px;max-width:80ch;line-height:1.5}
+/* one small table per colour, a row per player — reads the same at any table size */
+.colourblock{margin-bottom:18px}
+.colourblock .grpname{
+  font-size:.72rem;letter-spacing:.06em;text-transform:none;color:var(--text);
+  font-weight:700;border-bottom:1px solid var(--rule);padding-bottom:7px;
+}
+.colourblock td.pl{white-space:nowrap}
+.colourblock .tgt{
+  font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;
+  color:var(--brass);border:1px solid currentColor;border-radius:2px;padding:1px 4px;margin-left:4px;
+}
+#grouproi{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0 26px;align-items:start}
+#grouproi .footnote{grid-column:1/-1}
 .footnote a{color:var(--brass)}
 .badge{display:inline-block;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
 .badge.p1{color:var(--p1)}
 .badge.p2{color:var(--p2)}
+.badge.p3{color:var(--p3)}
+.badge.p4{color:var(--p4)}
 </style>
 
 <div class="wrap">
@@ -602,6 +641,14 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
   <div class="setup" id="setup"></div>
 
   <div class="runbar">
+    <div class="ctl">
+      <span class="flabel">Players</span>
+      <select id="playerCount">
+        <option value="2">2 players</option>
+        <option value="3">3 players</option>
+        <option value="4" selected>4 players</option>
+      </select>
+    </div>
     <div class="ctl">
       <span class="flabel">Games</span>
       <input type="number" id="games" value="1" min="1" max="20000" step="1">
@@ -643,8 +690,7 @@ tr.win td{background:color-mix(in srgb,var(--brass) 8%,transparent)}
       <div class="board" id="board"></div>
     </div>
     <div class="rail">
-      <div class="card pstat" data-p="1" id="live1"></div>
-      <div class="card pstat" data-p="2" id="live2"></div>
+      <div id="livePanels"></div>
       <div class="card">
         <h3>Deal Table &mdash; last offers</h3>
         <div id="trades"><div class="trade"><span class="nothing">No offers yet.</span></div></div>
@@ -897,10 +943,11 @@ function blankLedger(){
 
 function newGame(cfg, seed, first){
   const rng = makeRng(seed);
-  const start = first ? 1 : 0;
+  const n = cfg.players.length;
+  const start = ((first || 0) % n + n) % n;
   const g = {
-    cfg, seed, rng, first:start,
-    turn:0, cur:start, over:false, winner:null, reason:"",
+    cfg, seed, rng, first:start, n,
+    turn:0, cur:start, over:false, winner:null, reason:"", order:[],
     houses:32, hotels:12,
     pot:0,                              // free parking pot
     shortageTurns:0,
@@ -910,7 +957,7 @@ function newGame(cfg, seed, first){
     level:  new Array(40).fill(0),      // 0-4 houses, 5 = hotel
     mortgaged: new Array(40).fill(false),
     moved:  new Array(40).fill(-99),    // turn a deed last changed hands in a trade
-    players:[0,1].map(i=>({
+    players:cfg.players.map((_,i)=>({
       id:i+1, idx:i,
       cash:1500, pos:0, jail:false, jailTurns:0, gooj:0,
       bankrupt:false, doubles:0,
@@ -926,10 +973,30 @@ function newGame(cfg, seed, first){
   return g;
 }
 
-const other = (g,p)=> g.players[1-p.idx];
+/* Everyone still in the game other than p. Two-player code used to reach for
+   a single opponent; nothing may assume that now. */
+const rivals = (g,p) => g.players.filter(x => x.idx !== p.idx && !x.bankrupt);
+const allRivals = (g,p) => g.players.filter(x => x.idx !== p.idx);
+/* Kept for the handful of places that genuinely want one representative
+   opponent: the most threatening one still playing. */
+function other(g,p){
+  const r = rivals(g,p);
+  if(!r.length) return allRivals(g,p)[0] || p;
+  let best = r[0], bestW = -1;
+  for(const x of r){ const w = netWorth(g,x); if(w > bestW){ bestW = w; best = x; } }
+  return best;
+}
 
 function ownedIn(g,p,grp){
   let c=0; for(const i of GROUPS[grp].members) if(g.owner[i]===p.idx) c++;
+  return c;
+}
+/* Deeds in this colour held by anyone but p. What matters for whether a set is
+   still assemblable is that SOMEONE else holds one, not which player. */
+function heldByOthers(g,p,grp,excluding){
+  let c=0;
+  for(const i of GROUPS[grp].members)
+    if(g.owner[i] >= 0 && g.owner[i] !== p.idx && i !== excluding) c++;
   return c;
 }
 function hasMonopoly(g,p,grp){ return ownedIn(g,p,grp) === GROUPS[grp].members.length; }
@@ -979,7 +1046,12 @@ function unimprovedRent(g,i){
    opening balances; ev() consumes that stamp. Where nothing was marked, no
    money moved during the event and the current balance is already the
    "before" figure.                                                        */
-const cashNow = g => [g.players[0].cash, g.players[1].cash];
+const cashNow = g => g.players.map(p => p.cash);
+/* The opening balance a caller should quote after calling charge(): the
+   pre-deduction figure when the payment went through, and the settled figure
+   when it did not, because bankrupt() has already logged the estate moving
+   and a second claim on it would double-count. */
+const chargeSnap = g => g._chargeOk ? g._chargePre : cashNow(g);
 function mark(g){ g._pre = cashNow(g); }
 /* `before` may be passed explicitly. That matters wherever paying can cascade
    into raising cash, because the nested event would otherwise consume the
@@ -989,6 +1061,7 @@ function ev(g, type, msg, p, big, before){
   const opening = before || g._pre || now;
   if(!before) g._pre = null;
   g.events.push({type, msg, p: p?p.id:0, turn:g.turn, big:!!big,
+                 turnNo: Math.max(1, Math.ceil(g.turn/g.n)),
                  cash: opening.map(Math.round), after: now.map(Math.round)});
 }
 
@@ -1018,7 +1091,8 @@ function reserveFor(g,p){
   // Selling houses back costs half their price, so a thin cushion is far more
   // expensive than a turn of slower building.
   let worst = 0;
-  for(const i of myProps(g, other(g,p))) worst = Math.max(worst, rentFor(g,i,7));
+  for(const q of rivals(g,p))
+    for(const i of myProps(g,q)) worst = Math.max(worst, rentFor(g,i,7));
   r += Math.min(worst, 800);
   return r;
 }
@@ -1032,16 +1106,18 @@ function rawValue(g,p,i){
   const total = GROUPS[grp].members.length;
   const mineNow = ownedIn(g,p,grp);
   const mine = g.owner[i]===p.idx ? mineNow : mineNow + 1;  // as if held
-  const opp = other(g,p);
-  const oppOwns = ownedIn(g,opp,grp) - (g.owner[i]===opp.idx ? 1 : 0);
+  const oppOwns = heldByOthers(g,p,grp,i);
   let expected;
 
   if(s.type==="prop"){
     const completes = mine === total;
     const stillNeeded = total - mine;
     // chance of eventually assembling the set
-    let pMono = completes ? 1 : (oppOwns>0 ? 0.10 : 0.55/stillNeeded);
-    if(p.cfg.trade!=="never" && !completes) pMono += 0.15;
+    /* More players means more hands competing for the same three cards, so a
+       half-built colour is a longer shot than it is heads-up. */
+    const spread = 2 / Math.max(2, g.n);
+    let pMono = completes ? 1 : (oppOwns>0 ? 0.10*spread : (0.55/stillNeeded)*spread);
+    if(p.cfg.trade!=="never" && !completes) pMono += 0.15*spread;
     pMono = clamp(pMono,0,1);
     const tgt = clamp(p.cfg.houseTarget,1,5);
     const devRent = s.rent[tgt];
@@ -1071,9 +1147,7 @@ function isDeadCard(g,p,i){
   const grp = s.g, total = GROUPS[grp].members.length;
   const mineNow = ownedIn(g,p,grp);
   const mine = g.owner[i]===p.idx ? mineNow : mineNow + 1;
-  const opp = other(g,p);
-  const oppOwns = ownedIn(g,opp,grp) - (g.owner[i]===opp.idx ? 1 : 0);
-  return oppOwns > 0 && mine < total;
+  return heldByOthers(g,p,grp,i) > 0 && mine < total;
 }
 
 /* ------------------------------------------------------------------
@@ -1121,11 +1195,11 @@ function nv(g,pl,i){
 function denialValue(g,p,i){
   const s = BOARD[i];
   if(s.type!=="prop") return 0;
-  const opp = other(g,p);
-  if(g.owner[i]!==opp.idx) return 0;
-  if(!hasMonopoly(g,opp,s.g)) return 0;
+  if(g.owner[i] < 0 || g.owner[i] === p.idx) return 0;
+  const holder = g.players[g.owner[i]];
+  if(!hasMonopoly(g,holder,s.g)) return 0;
   const f = FREQ[i]/100;
-  const lvl = clamp(opp.cfg.houseTarget,1,5);
+  const lvl = clamp(holder.cfg.houseTarget,1,5);
   return f * s.rent[lvl] * HORIZON * 0.55 / scaleFor(g,p);
 }
 
@@ -1318,10 +1392,21 @@ function raiseCash(g,p,need){
   }
 }
 
+/* A bankruptcy eliminates one player. The game only ends when a single player
+   is left standing — so with four at the table the creditor collects a windfall
+   and play continues. */
 function bankrupt(g,p,to){
+  if(p.bankrupt) return;
+  const b0 = cashNow(g);          // before the estate changes hands
   p.bankrupt = true;
-  if(to){
+  p.out = g.turn;
+  g.order.push(p.id);
+  /* Settle the estate in full — including zeroing the loser — before writing
+     the event, so the balances it reports are the final ones. */
+  let msg;
+  if(to && !to.bankrupt){
     to.cash += Math.max(0,p.cash);
+    p.cash = 0;
     for(const i of myProps(g,p)){
       g.owner[i] = to.idx;
       // buildings are sold back to the bank on bankruptcy
@@ -1331,17 +1416,23 @@ function bankrupt(g,p,to){
         g.level[i] = 0;
       }
     }
+    msg = "P"+p.id+" is out. Everything passes to P"+to.id+".";
   } else {
+    p.cash = 0;
     for(const i of myProps(g,p)){
       g.owner[i] = -1; g.mortgaged[i] = false;
       if(g.level[i] === 5){ g.hotels++; g.houses += 4; } else g.houses += g.level[i];
       g.level[i] = 0;
     }
+    msg = "P"+p.id+" is out. Their deeds return to the bank.";
   }
-  p.cash = 0;
-  g.over = true;
-  g.winner = to ? to.id : other(g,p).id;
-  g.reason = "bankruptcy";
+  ev(g,"bust",msg,p,true,b0);
+  const left = g.players.filter(x=>!x.bankrupt);
+  if(left.length <= 1){
+    g.over = true;
+    g.reason = "bankruptcy";
+    g.winner = left.length ? left[0].id : (to ? to.id : 0);
+  }
 }
 
 /* Returns true if paid, false if the payer went bankrupt.
@@ -1349,10 +1440,11 @@ function bankrupt(g,p,to){
    deduction — i.e. after any scramble to raise cash — so the caller's log line
    reports the payment itself rather than the scramble that preceded it. */
 function charge(g,p,amt,to){
-  if(amt <= 0){ g._chargePre = cashNow(g); return true; }
+  if(amt <= 0){ g._chargePre = cashNow(g); g._chargeOk = true; return true; }
   if(p.cash < amt) raiseCash(g,p,amt);
   g._chargePre = cashNow(g);
-  if(p.cash < amt){ bankrupt(g,p,to); return false; }
+  if(p.cash < amt){ g._chargeOk = false; bankrupt(g,p,to); return false; }
+  g._chargeOk = true;
   p.cash -= amt;
   if(to) to.cash += amt;
   else if(g.cfg.rules.freeParkingPot) g.pot += amt;
@@ -1382,12 +1474,24 @@ function offerPremium(pl){
   }
 }
 
+/* Shop every rival for the single best deal on offer, then propose that one.
+   A deed that completes a set for ANY other player is priced as dangerous to
+   hand over, not just one that helps the player being dealt with. */
 function buildOffer(g,p){
   const ts = p.cfg.trade;
   if(ts === "never") return null;
-  const opp = other(g,p);
+  let best = null;
+  for(const opp of rivals(g,p)){
+    const found = bestOfferAgainst(g,p,opp);
+    if(found && (!best || found.score > best.score)) best = found;
+  }
+  return best;
+}
+
+function bestOfferAgainst(g,p,opp){
+  const ts = p.cfg.trade;
   // a deed that has just changed hands is off the table for a while, or the
-  // two players spend the whole game shuttling the same cards back and forth
+  // players spend the whole game shuttling the same cards back and forth
   const COOL = 10;
   const settled = i => groupClear(g,i) && (g.turn - g.moved[i]) > COOL;
   const oppHas = myProps(g,opp).filter(settled);
@@ -1410,8 +1514,10 @@ function buildOffer(g,p){
       if(X !== null){
         const xg = BOARD[X].g;
         if(hasMonopoly(g,p,xg)) continue;                 // never break my own set
-        const xCompletes = completesFor(g,opp,X);
-        const iComplete  = completesFor(g,p,W);
+        // completing ANY rival's colour is the expensive move, not just this one's
+        const xCompletesFor = rivals(g,p).filter(q => completesFor(g,q,X));
+        const xCompletes = xCompletesFor.length > 0;
+        const iComplete = completesFor(g,p,W);
         if(xCompletes){
           if(ts === "fair" || ts === "blocker") continue;  // hard refusal
           if(ts === "winwin" && !iComplete) continue;      // only as a mutual deal
@@ -1420,10 +1526,11 @@ function buildOffer(g,p){
       }
       let giveVal = X === null ? 0 : nv(g,p,X);
       const oppGain = X === null ? 0 : nv(g,opp,X);
-      // if I'd be completing their colour, charge myself for it too
-      if(X !== null && completesFor(g,opp,X) && !completesFor(g,p,W)) giveVal *= 1.8;
+      // if I would be completing anyone's colour, charge myself for it
+      if(X !== null && rivals(g,p).some(q => completesFor(g,q,X)) && !completesFor(g,p,W))
+        giveVal *= 1.8;
 
-      // minimum cash I must add for the opponent to say yes
+      // minimum cash I must add for this opponent to say yes
       const mutual = X !== null && completesFor(g,opp,X);
       const iComplete = completesFor(g,p,W);
       let oppLoseAdj = oppLose;
@@ -1575,20 +1682,25 @@ function payRent(g,p,i,dice,mult){
   const base = unimprovedRent(g,i) * (mult || 1);
   const grp = BOARD[i].g;
   const why = rentBasis(g,i,dice,mult);
-  const ok = charge(g,p,amt,owner);
-  const b0 = g._chargePre;
-  if(ok){
-    owner.ledger[grp].rent += amt;
-    owner.ledger[grp].buildRent += Math.max(0, amt - base);
-    owner.stats.rentGot += amt; p.stats.rentPaid += amt;
-    ev(g,"rent",
-      `<b class="rt">Rent</b> P${p.id} pays <b class="amt">${money(amt)}</b> to P${owner.id}`+
-      ` &mdash; ${BOARD[i].n} (${why})`, p, amt>=400, b0);
-  } else {
+
+  /* Let the payer scramble for the money first, so the log can state the debt
+     before the estate is settled rather than after it. */
+  if(p.cash < amt) raiseCash(g,p,amt);
+  if(p.cash < amt){
     ev(g,"bust",
       `<b class="rt bad">Rent</b> P${p.id} owes <b class="amt">${money(amt)}</b> to P${owner.id}`+
-      ` on ${BOARD[i].n} (${why}) and cannot cover it &mdash; bankrupt.`, p, true, b0);
+      ` on ${BOARD[i].n} (${why}) and cannot cover it.`, p, true, cashNow(g));
+    bankrupt(g,p,owner);
+    return;
   }
+  const b0 = cashNow(g);
+  p.cash -= amt; owner.cash += amt;
+  owner.ledger[grp].rent += amt;
+  owner.ledger[grp].buildRent += Math.max(0, amt - base);
+  owner.stats.rentGot += amt; p.stats.rentPaid += amt;
+  ev(g,"rent",
+    `<b class="rt">Rent</b> P${p.id} pays <b class="amt">${money(amt)}</b> to P${owner.id}`+
+    ` &mdash; ${BOARD[i].n} (${why})`, p, amt>=400, b0);
 }
 
 function* landOn(g,p,dice){
@@ -1614,7 +1726,7 @@ function* landOn(g,p,dice){
     case "tax": {
       const amt = s.tax === "income" ? Math.min(200, Math.round(netWorth(g,p)*0.1)) : 75;
       charge(g,p,amt,null);
-      const bt = g._chargePre;
+      const bt = chargeSnap(g);
       ev(g,"tax","P"+p.id+" pays <b class=\"amt\">"+money(amt)+"</b> in "+(s.tax==="income"?"income":"luxury")+" tax.",p,false,bt);
       break;
     }
@@ -1675,7 +1787,7 @@ function* drawCard(g,p,deck){
   if(keys.length === 1 && keys[0] === "pay"){
     let bp = cashNow(g);
     if(a.pay > 0) p.cash += a.pay;
-    else { charge(g,p,-a.pay,null); bp = g._chargePre || bp; }
+    else { charge(g,p,-a.pay,null); bp = chargeSnap(g); }
     ev(g,"card","P"+p.id+" draws "+(deck==="chance"?"Chance":"Chest")+": "+card.t,p,false,bp);
     yield {k:"card",p,text:card.t,deck};
     return;
@@ -1686,24 +1798,27 @@ function* drawCard(g,p,deck){
   if(a.gooj){ p.gooj++; return; }
   if(a.jail){ goToJail(g,p); return; }
   if(a.eachPay !== undefined){
-    const o = other(g,p);
-    charge(g,p,a.eachPay,o);
-    const be = g._chargePre;
-    ev(g,"rent","P"+p.id+" pays <b class=\"amt\">"+money(a.eachPay)+"</b> to P"+o.id+" on the card.",p,false,be);
+    for(const o of rivals(g,p)){
+      if(p.bankrupt) break;
+      charge(g,p,a.eachPay,o);
+      const be = chargeSnap(g);
+      ev(g,"rent","P"+p.id+" pays <b class=\"amt\">"+money(a.eachPay)+"</b> to P"+o.id+" on the card.",p,false,be);
+    }
     return;
   }
   if(a.eachCollect !== undefined){
-    const o = other(g,p);
-    charge(g,o,a.eachCollect,p);
-    const bc = g._chargePre;
-    ev(g,"rent","P"+o.id+" pays <b class=\"amt\">"+money(a.eachCollect)+"</b> to P"+p.id+" on the card.",p,false,bc);
+    for(const o of rivals(g,p)){
+      charge(g,o,a.eachCollect,p);
+      const bc = chargeSnap(g);
+      ev(g,"rent","P"+o.id+" pays <b class=\"amt\">"+money(a.eachCollect)+"</b> to P"+p.id+" on the card.",p,false,bc);
+    }
     return;
   }
   if(a.repairs){
     let h=0,ho=0;
     for(const i of myProps(g,p)){ if(g.level[i]===5) ho++; else h += g.level[i]; }
     const amt = h*a.repairs[0] + ho*a.repairs[1];
-    if(amt>0){ charge(g,p,amt,null); const br = g._chargePre;
+    if(amt>0){ charge(g,p,amt,null); const br = chargeSnap(g);
       ev(g,"tax","P"+p.id+" pays <b class=\"amt\">"+money(amt)+"</b> for repairs on "+h+" houses and "+ho+" hotels.",p,false,br); }
     return;
   }
@@ -1742,15 +1857,23 @@ function* drawCard(g,p,deck){
    ================================================================== */
 function wantsOutOfJail(g,p){
   if(p.gooj > 0) return true;
-  const opp = other(g,p);
   let danger = 0;
-  for(const i of myProps(g,opp)) danger = Math.max(danger, rentFor(g,i,7));
+  for(const q of rivals(g,p))
+    for(const i of myProps(g,q)) danger = Math.max(danger, rentFor(g,i,7));
   if(danger >= 500 && p.cash < 900) return false;   // safer inside
   return p.cash >= 50;
 }
 
+function nextSeat(g){
+  for(let k=1; k<=g.n; k++){
+    const idx = (g.cur + k) % g.n;
+    if(!g.players[idx].bankrupt){ g.cur = idx; return; }
+  }
+}
+
 function* takeTurn(g){
   const p = g.players[g.cur];
+  if(p.bankrupt){ nextSeat(g); return; }
   g.turn++;
   if(g.houses === 0) g.shortageTurns++;
   yield {k:"turn",p};
@@ -1758,13 +1881,14 @@ function* takeTurn(g){
   /* --- deal table --- */
   const offer = buildOffer(g,p);
   if(offer){
+    const counterparty = g.players[offer.to - 1];
     p.stats.tradesProposed++;
-    other(g,p).stats.tradesReceived++;
+    counterparty.stats.tradesReceived++;
     const ok = evaluateOffer(g,offer);
     if(ok){
       mark(g);
       executeTrade(g,offer);
-      p.stats.tradesAccepted++; other(g,p).stats.tradesTaken++;
+      p.stats.tradesAccepted++; counterparty.stats.tradesTaken++;
       ev(g,"trade","TRADE: P"+offer.from+" gets "+offer.get.map(i=>BOARD[i].n).join(", ")+
          (offer.give.length? " for "+offer.give.map(i=>BOARD[i].n).join(", "):"")+
          (offer.cash? " "+(offer.cash>0?"plus ":"and receives ")+money(Math.abs(offer.cash)):"")+".",p,true);
@@ -1783,7 +1907,7 @@ function* takeTurn(g){
       p.gooj--; p.jail = false;
       ev(g,"jail","P"+p.id+" plays Get Out of Jail Free.",p);
     } else if(want && p.cash >= 50){
-      charge(g,p,50,null); const bj = g._chargePre; p.jail = false;
+      charge(g,p,50,null); const bj = chargeSnap(g); p.jail = false;
       ev(g,"jail","P"+p.id+" pays <b class=\"amt\">$50</b> to leave Jail.",p,false,bj);
     } else {
       const d1 = 1+Math.floor(g.rng()*6), d2 = 1+Math.floor(g.rng()*6);
@@ -1796,7 +1920,7 @@ function* takeTurn(g){
         yield {k:"move",p};
         yield* landOn(g,p,d1+d2);
       } else if(p.jailTurns >= 3){
-        charge(g,p,50,null); const bj3 = g._chargePre; p.jail = false;
+        charge(g,p,50,null); const bj3 = chargeSnap(g); p.jail = false;
         ev(g,"jail","P"+p.id+" serves the third turn and pays <b class=\"amt\">$50</b>.",p,false,bj3);
         if(!g.over){
           advance(g,p,d1+d2);
@@ -1806,7 +1930,7 @@ function* takeTurn(g){
       } else {
         ev(g,"jail","P"+p.id+" stays in Jail (turn "+p.jailTurns+" of 3).",p);
       }
-      if(!g.over){ buildPhase(g,p); unmortgagePhase(g,p); }
+      if(!g.over && !p.bankrupt){ buildPhase(g,p); unmortgagePhase(g,p); }
       p.stats.maxNet = Math.max(p.stats.maxNet, netWorth(g,p));
   p.stats.setsPeak = Math.max(p.stats.setsPeak, GROUP_KEYS.filter(k=>hasMonopoly(g,p,k)).length);
   if(g.houses === 0){
@@ -1814,7 +1938,7 @@ function* takeTurn(g){
     for(const i of myProps(g,p)) if(g.level[i] > 0 && g.level[i] < 5) held += g.level[i];
     if(held >= 16) p.stats.shortageCaused++;
   }
-      g.cur = 1-g.cur;
+      nextSeat(g);
       yield {k:"end",p};
       return;
     }
@@ -1838,12 +1962,12 @@ function* takeTurn(g){
     ev(g,"move","P"+p.id+" rolls "+d1+"+"+d2+" to "+BOARD[p.pos].n+".",p);
     yield {k:"move",p};
     yield* landOn(g,p,d1+d2);
-    if(g.over) break;
+    if(g.over || p.bankrupt) break;
     if(p.jail) break;
     if(d1 !== d2) break;
   }
 
-  if(!g.over){
+  if(!g.over && !p.bankrupt){
     const built = buildPhase(g,p);
     if(built) yield {k:"build",p};
     unmortgagePhase(g,p);
@@ -1855,23 +1979,36 @@ function* takeTurn(g){
     for(const i of myProps(g,p)) if(g.level[i] > 0 && g.level[i] < 5) held += g.level[i];
     if(held >= 16) p.stats.shortageCaused++;
   }
-  g.cur = 1-g.cur;
+  nextSeat(g);
   yield {k:"end",p};
 }
 
 function* playGame(g){
   while(!g.over){
-    if(g.turn >= g.cfg.turnCap*2){
-      const a = netWorth(g,g.players[0]), b = netWorth(g,g.players[1]);
+    if(g.turn >= g.cfg.turnCap * g.n){
+      // nobody was eliminated in time: richest player standing takes it
+      const live = g.players.filter(x=>!x.bankrupt);
+      let top = [], bestW = -Infinity;
+      for(const x of live){
+        const w = netWorth(g,x);
+        if(w > bestW + 0.5){ bestW = w; top = [x]; }
+        else if(Math.abs(w - bestW) <= 0.5) top.push(x);
+      }
       g.over = true;
       g.reason = "turn cap";
-      g.winner = a === b ? 0 : (a > b ? 1 : 2);
-      ev(g,"end","Turn cap reached. "+(g.winner? "P"+g.winner+" leads on net worth." : "Dead heat."),null,true);
+      g.winner = top.length === 1 ? top[0].id : 0;
+      // everyone still playing finishes ahead of everyone already out
+      for(const x of live.slice().sort((m,q)=>netWorth(g,m)-netWorth(g,q))) g.order.push(x.id);
+      ev(g,"end","Turn cap reached. "+(g.winner ? "P"+g.winner+" leads on net worth."
+                                                : "Dead heat on net worth."),null,true);
       break;
     }
     yield* takeTurn(g);
   }
-  if(g.reason === "bankruptcy") ev(g,"end","P"+g.winner+" wins by bankruptcy on turn "+Math.ceil(g.turn/2)+".",null,true);
+  if(g.reason === "bankruptcy"){
+    if(g.winner) g.order.push(g.winner);
+    ev(g,"end","P"+g.winner+" wins on turn "+Math.ceil(g.turn/g.n)+" — last player standing.",null,true);
+  }
   yield {k:"gameover"};
 }
 
@@ -1887,9 +2024,13 @@ const el = (t,c,h) => { const e = document.createElement(t); if(c) e.className =
    every later result has a baseline to be measured against. */
 const doctrine = [
   {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"},
+  {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"},
+  {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"},
   {priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"}
 ];
-const PNAMES = ["Player 1","Player 2"];
+const PNAMES = ["Player 1","Player 2","Player 3","Player 4"];
+let seats = 4;                       // how many of the four are in play
+const active = () => doctrine.slice(0, seats);
 
 /* ---------- theme ---------- */
 $("#themebtn").onclick = () => {
@@ -1903,7 +2044,7 @@ $("#themebtn").onclick = () => {
 function buildSetup(){
   const host = $("#setup");
   host.innerHTML = "";
-  doctrine.forEach((d,pi)=>{
+  doctrine.slice(0, seats).forEach((d,pi)=>{
     const card = el("div","deed");
     card.dataset.p = pi+1;
     card.innerHTML = `
@@ -2079,7 +2220,7 @@ function setDie(id,v){
   pips.forEach((p,k)=>p.classList.toggle("on", PIPMAP[v] && PIPMAP[v].includes(k)));
 }
 
-function paintBoard(g, active){
+function paintBoard(g, mover){
   for(const i of OWNABLE){
     const q = SQ[i], o = g.owner[i];
     q.el.dataset.own = o < 0 ? "" : String(o+1);
@@ -2094,10 +2235,10 @@ function paintBoard(g, active){
   }
   for(let i=0;i<40;i++) if(SQ[i].tokens.childElementCount) SQ[i].tokens.innerHTML = "";
   g.players.forEach(p=>{
-    if(p.bankrupt) return;
     const t = el("span","tk");
-    t.style.setProperty("--tc", p.idx===0 ? "var(--p1)" : "var(--p2)");
-    if(active && active.id === p.id) t.dataset.active = "1";
+    t.style.setProperty("--tc", "var(--p"+p.id+")");
+    if(p.bankrupt) t.dataset.out = "1";
+    else if(mover && mover.id === p.id) t.dataset.active = "1";
     SQ[p.pos].tokens.appendChild(t);
   });
   $("#hleft").textContent = g.houses;
@@ -2107,10 +2248,22 @@ function paintBoard(g, active){
 }
 
 /* ---------- live player panels ---------- */
+function buildLivePanels(){
+  const host = $("#livePanels");
+  host.innerHTML = "";
+  for(let i=0;i<seats;i++){
+    const c = el("div","card pstat");
+    c.dataset.p = i+1;
+    c.id = "live"+(i+1);
+    host.appendChild(c);
+  }
+}
 function paintPlayers(g){
   g.players.forEach(p=>{
     const host = document.querySelector("#live"+p.id);
-    host.classList.toggle("turn", g.players[g.cur].id === p.id && !g.over);
+    if(!host) return;
+    host.classList.toggle("turn", g.players[g.cur].id === p.id && !g.over && !p.bankrupt);
+    host.classList.toggle("out", p.bankrupt);
     const holdings = myProps(g,p).sort((a,b)=>GROUPS[BOARD[a].g].order-GROUPS[BOARD[b].g].order || a-b);
     const chips = holdings.map(i=>{
       const grp = BOARD[i].g, G = GROUPS[grp];
@@ -2128,7 +2281,7 @@ function paintPlayers(g){
       <div class="top">
         <span class="token-dot">${p.id}</span>
         <h3>${PNAMES[p.idx]}</h3>
-        <span class="cash num">${money(p.cash)}</span>
+        <span class="cash num">${p.bankrupt ? "out" : money(p.cash)}</span>
       </div>
       <div class="doctrine">
         <span class="dlab">Playing</span>
@@ -2203,8 +2356,9 @@ function inkNames(html){
    Possessives ("P1's offer") keep their apostrophe. */
 function annotateCash(e){
   if(!e.cash) return e.msg;
-  return e.msg.replace(/\bP([12])(['’]s)?/g, (_all, n, poss) => {
+  return e.msg.replace(/\bP([1-4])(['’]s)?/g, (_all, n, poss) => {
     const k = +n - 1;
+    if(k >= e.cash.length) return _all;
     const before = e.cash[k];
     const after = e.after ? e.after[k] : before;
     const tag = after !== before
@@ -2222,7 +2376,7 @@ function drainLog(g){
   for(; logSeen < g.events.length; logSeen++){
     const e = g.events[logSeen];
     const msg = inkNames(annotateCash(e));
-    const li = el("li", e.big ? "big" : "", `<span class="t">${Math.ceil(e.turn/2)}</span><span class="m">${msg}</span>`);
+    const li = el("li", e.big ? "big" : "", `<span class="t">${e.turnNo}</span><span class="m">${msg}</span>`);
     if(e.p) li.dataset.p = e.p;
     li.dataset.type = e.type;
     frag.appendChild(li);
@@ -2235,13 +2389,16 @@ function drainLog(g){
 /* ==================================================================
    AGGREGATION
    ================================================================== */
-function newAgg(){
+function newAgg(n){
+  const N = n || seats;
+  const zeros = () => new Array(N).fill(0);
   return {
-    games:0, wins:[0,0], draws:0, turnsSum:0, capped:0, busted:0,
-    firstWins:0, secondWins:0, decided:0, startedFirst:[0,0],
-    netSum:[0,0], peakSum:[0,0],
-    ledger:[blankLedger(), blankLedger()],
-    st:[0,1].map(()=>({rentGot:0,rentPaid:0,bought:0,auctionsWon:0,housesBuilt:0,hotelsBuilt:0,
+    n:N,
+    games:0, wins:zeros(), draws:0, turnsSum:0, capped:0, busted:0,
+    firstWins:0, decided:0, startedFirst:zeros(),
+    netSum:zeros(), peakSum:zeros(), placeSum:zeros(), survived:zeros(),
+    ledger:Array.from({length:N}, blankLedger),
+    st:Array.from({length:N}, ()=>({rentGot:0,rentPaid:0,bought:0,auctionsWon:0,housesBuilt:0,hotelsBuilt:0,
                        tradesProposed:0,tradesAccepted:0,tradesReceived:0,tradesTaken:0,timesJailed:0,
                        setsPeak:0, shortageCaused:0, monos:0})),
     shortageSum:0, shortageGames:0
@@ -2249,14 +2406,23 @@ function newAgg(){
 }
 function collect(a,g){
   a.games++;
-  a.turnsSum += Math.ceil(g.turn/2);
+  a.turnsSum += Math.ceil(g.turn/g.n);
   if(g.reason === "turn cap") a.capped++; else a.busted++;
   if(g.winner === 0) a.draws++; else a.wins[g.winner-1]++;
   a.startedFirst[g.first]++;
   if(g.winner){
     a.decided++;
-    if(g.winner - 1 === g.first) a.firstWins++; else a.secondWins++;
+    if(g.winner - 1 === g.first) a.firstWins++;
   }
+  /* g.order is the finishing order, first out first. Reverse it into places:
+     1st, 2nd, 3rd, 4th — so a strategy that reliably comes second is visible
+     rather than being lumped in with one that goes out first. */
+  const places = g.order.slice().reverse();
+  g.players.forEach((p,pi)=>{
+    const place = places.indexOf(p.id);
+    a.placeSum[pi] += place >= 0 ? place + 1 : g.n;
+    if(!p.bankrupt) a.survived[pi]++;
+  });
   if(g.shortageTurns > 0){ a.shortageGames++; a.shortageSum += Math.ceil(g.shortageTurns/2); }
   g.players.forEach((p,pi)=>{
     a.netSum[pi] += netWorth(g,p);
@@ -2286,65 +2452,70 @@ function roiCell(r){
 
 function renderResults(a, cfg){
   if(!a.games) return;
+  const N = a.n;
+  const seatList = Array.from({length:N}, (_,i)=>i);
   $("#results").classList.add("on");
-  const w1 = a.wins[0]/a.games, w2 = a.wins[1]/a.games, dr = a.draws/a.games;
+  const rate = pi => a.wins[pi]/a.games;
+  const dr = a.draws/a.games;
   $("#ledgersub").textContent =
-    `${a.games.toLocaleString()} game${a.games>1?"s":""} · ${(a.turnsSum/a.games).toFixed(1)} turns each on average · ` +
-    `${a.busted} decided by bankruptcy, ${a.capped} by net worth at the cap`;
+    `${a.games.toLocaleString()} game${a.games>1?"s":""} \u00b7 ${N} players \u00b7 ` +
+    `${(a.turnsSum/a.games).toFixed(1)} turns each on average \u00b7 ` +
+    `${a.busted} decided by elimination, ${a.capped} by net worth at the cap`;
 
-  $("#headline").innerHTML = `
-    <div><div class="k">Player 1 wins</div><div class="v p1">${pct(w1)}</div>
-      <div class="s">${a.wins[0].toLocaleString()} of ${a.games.toLocaleString()} · ${doctrineLine(0)}</div></div>
-    <div><div class="k">Player 2 wins</div><div class="v p2">${pct(w2)}</div>
-      <div class="s">${a.wins[1].toLocaleString()} of ${a.games.toLocaleString()} · ${doctrineLine(1)}</div></div>
-    <div><div class="k">Edge</div><div class="v ${w1>w2?"p1":"p2"}">${(Math.abs(w1-w2)*100).toFixed(1)} pts</div>
-      <div class="s">${w1===w2?"level":"to Player "+(w1>w2?1:2)}${a.draws?` · ${pct(dr)} drawn`:""}</div></div>
-    <div><div class="k">Avg final net worth</div>
-      <div class="v" style="font-size:1.5rem"><span class="p1" style="color:var(--p1)">${money(a.netSum[0]/a.games)}</span>
-      <span style="color:var(--text-3);font-size:1rem"> / </span><span style="color:var(--p2)">${money(a.netSum[1]/a.games)}</span></div>
-      <div class="s">P1 / P2</div></div>
-    <div><div class="k">Housing shortage</div><div class="v">${a.shortageGames?pct(a.shortageGames/a.games):"0%"}</div>
+  const best = seatList.slice().sort((x,y)=>a.wins[y]-a.wins[x]);
+  const lead = rate(best[0]) - rate(best[1]);
+
+  $("#headline").innerHTML =
+    seatList.map(pi=>`
+      <div><div class="k">${PNAMES[pi]} wins</div><div class="v p${pi+1}">${pct(rate(pi))}</div>
+        <div class="s">${a.wins[pi].toLocaleString()} of ${a.games.toLocaleString()} \u00b7
+          avg finish ${(a.placeSum[pi]/a.games).toFixed(2)} of ${N} \u00b7 ${doctrineLine(pi)}</div></div>`).join("") +
+    `<div><div class="k">Lead</div><div class="v p${best[0]+1}">${(lead*100).toFixed(1)} pts</div>
+      <div class="s">${lead < 0.005 ? "too close to call" : PNAMES[best[0]]+" over "+PNAMES[best[1]]}${a.draws?` \u00b7 ${pct(dr)} drawn`:""}</div></div>
+     <div><div class="k">Housing shortage</div><div class="v">${a.shortageGames?pct(a.shortageGames/a.games):"0%"}</div>
       <div class="s">${a.shortageGames? (a.shortageSum/a.shortageGames).toFixed(1)+" turns locked out, when it happened" : "the pool never ran dry"}</div></div>
-    <div><div class="k">Moved first</div><div class="v">${a.decided?pct(a.firstWins/a.decided):"—"}</div>
+     <div><div class="k">Moved first</div><div class="v">${a.decided?pct(a.firstWins/a.decided):"\u2014"}</div>
       <div class="s">${firstMoveNote(a, cfg)}</div></div>`;
 
-  const wb = $("#winbar");
-  wb.innerHTML =
-    `<div class="w1" style="flex-basis:${w1*100}%">${w1>0.09?"P1 "+pct(w1):""}</div>` +
-    (dr>0?`<div class="wd" style="flex-basis:${dr*100}%">${dr>0.09?"Draw":""}</div>`:"") +
-    `<div class="w2" style="flex-basis:${w2*100}%">${w2>0.09?"P2 "+pct(w2):""}</div>`;
+  $("#winbar").innerHTML =
+    seatList.map(pi=>`<div class="w${pi+1}" style="flex-basis:${rate(pi)*100}%">${rate(pi)>0.09?"P"+(pi+1)+" "+pct(rate(pi)):""}</div>`).join("") +
+    (dr>0?`<div class="wd" style="flex-basis:${dr*100}%">${dr>0.09?"Draw":""}</div>`:"");
 
-  /* ---- colour ROI ---- */
-  const rows = [];
-  const maxR = Math.max(0.01, ...GROUP_KEYS.flatMap(k=>[0,1].map(pi=>ratio(a.ledger[pi][k].rent,a.ledger[pi][k].out)||0)));
+  /* ---- return on colour: a block per colour, a row per player ---- */
+  const maxR = Math.max(0.01, ...GROUP_KEYS.flatMap(k=>seatList.map(pi=>ratio(a.ledger[pi][k].rent,a.ledger[pi][k].out)||0)));
+  const blocks = [];
   for(const k of GROUP_KEYS){
-    const L0 = a.ledger[0][k], L1 = a.ledger[1][k];
-    if(L0.out < 1 && L1.out < 1) continue;
-    const r0 = ratio(L0.rent,L0.out), r1 = ratio(L1.rent,L1.out);
-    const t0 = ratio(L0.rent+L0.sales,L0.out), t1 = ratio(L1.rent+L1.sales,L1.out);
-    const tag = pi => doctrine[pi].priority.includes(k) ? `<span class="badge p${pi+1}">P${pi+1} target</span>` : "";
-    rows.push(`<tr>
-      <td><span class="swatch" style="--sw:var(${GROUPS[k].css})"></span>${GROUPS[k].name} ${tag(0)}${tag(1)}</td>
-      <td class="n">${money(L0.out/a.games)}</td><td class="n">${money(L0.rent/a.games)}</td>${roiCell(r0)}
-      <td style="width:70px"><div class="roibar p1"><i style="width:${clamp((r0||0)/maxR*100,0,100)}%"></i></div></td>
-      ${roiCell(t0)}
-      <td class="n" style="border-left:1px solid var(--rule)">${money(L1.out/a.games)}</td><td class="n">${money(L1.rent/a.games)}</td>${roiCell(r1)}
-      <td style="width:70px"><div class="roibar p2"><i style="width:${clamp((r1||0)/maxR*100,0,100)}%"></i></div></td>
-      ${roiCell(t1)}
-    </tr>`);
+    if(seatList.every(pi=>a.ledger[pi][k].out < 1)) continue;
+    const rows = seatList.map(pi=>{
+      const L = a.ledger[pi][k];
+      if(L.out < 1) return `<tr><td class="pl"><span class="badge p${pi+1}">P${pi+1}</span></td>
+        <td colspan="5" style="color:var(--text-3)">never bought in</td></tr>`;
+      const r = ratio(L.rent,L.out), t = ratio(L.rent+L.sales,L.out);
+      const tag = doctrine[pi].priority.includes(k) ? ` <span class="tgt">target</span>` : "";
+      return `<tr>
+        <td class="pl"><span class="badge p${pi+1}">P${pi+1}</span>${tag}</td>
+        <td class="n">${money(L.out/a.games)}</td>
+        <td class="n">${money(L.rent/a.games)}</td>
+        ${roiCell(r)}
+        <td style="width:90px"><div class="roibar p${pi+1}"><i style="width:${clamp((r||0)/maxR*100,0,100)}%"></i></div></td>
+        ${roiCell(t)}</tr>`;
+    }).join("");
+    blocks.push(`<table class="colourblock">
+      <thead>
+        <tr><th colspan="6" class="grpname">
+          <span class="swatch" style="--sw:var(${GROUPS[k].css})"></span>${GROUPS[k].name}</th></tr>
+        <tr><th>Player</th><th>Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th></tr>
+      </thead>
+      <tbody>${rows}</tbody></table>`);
   }
-  $("#grouproi").innerHTML = `<table>
-    <thead><tr><th></th>
-      <th colspan="5">Player 1 &mdash; per game</th>
-      <th colspan="5" style="border-left:1px solid var(--rule)">Player 2 &mdash; per game</th></tr>
-      <tr><th>Colour</th><th>Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th>
-      <th style="border-left:1px solid var(--rule)">Committed</th><th>Rent in</th><th>Rent ROI</th><th></th><th>Total ROI</th></tr></thead>
-    <tbody>${rows.join("") || `<tr><td colspan="11" class="nothing">Nobody bought anything.</td></tr>`}</tbody></table>
-    <p class="footnote"><b>Rent ROI</b> is rent received per dollar committed. <b>Total ROI</b> adds back capital
-    recovered &mdash; mortgages, buildings sold, and cash taken in when those deeds were traded away.</p>`;
+  $("#grouproi").innerHTML = (blocks.join("") || `<span class="nothing">Nobody bought anything.</span>`) +
+    `<p class="footnote"><b>Committed</b> is every dollar that went into the colour \u2014 deed price, auction
+     price, house money, unmortgage fees and cash handed over in trades. <b>Rent ROI</b> is rent received per
+     dollar committed; <b>Total ROI</b> also credits capital that came back out through mortgages, buildings
+     sold, and cash taken in when those deeds were traded away. All figures are per game.</p>`;
 
-  /* ---- building ROI ---- */
-  const brows = [0,1].map(pi=>{
+  /* ---- return on building ---- */
+  const brows = seatList.map(pi=>{
     let bo=0, br=0, bs=0;
     for(const k of GROUP_KEYS){
       bo += a.ledger[pi][k].buildOut; br += a.ledger[pi][k].buildRent; bs += a.ledger[pi][k].buildSales;
@@ -2363,14 +2534,14 @@ function renderResults(a, cfg){
     <thead><tr><th>Doctrine</th><th>Houses</th><th>Hotels</th><th>Building capital</th>
     <th>Rent from buildings</th><th>Rent ROI</th><th>Total ROI</th></tr></thead>
     <tbody>${brows.join("")}</tbody></table>
-    <p class="footnote">“Rent from buildings” counts only the part of each rent cheque above what the same
+    <p class="footnote">\u201cRent from buildings\u201d counts only the part of each rent cheque above what the same
     property would have charged undeveloped, so it isolates what the houses themselves earned. Total ROI adds
     back the half-price refund on any buildings sold under pressure.</p>`;
 
-  /* ---- trades ---- */
+  /* ---- deal table ---- */
   $("#tradestats").innerHTML = `<table>
-    <thead><tr><th>Player</th><th>Strategy</th><th>Offers made</th><th>Got a yes</th><th>Offers seen</th><th>Said yes</th><th>Sets held at end</th></tr></thead>
-    <tbody>${[0,1].map(pi=>{
+    <thead><tr><th>Player</th><th>Strategy</th><th>Offers made</th><th>Got a yes</th><th>Offers seen</th><th>Said yes</th><th>Sets held</th></tr></thead>
+    <tbody>${seatList.map(pi=>{
       const S = a.st[pi];
       return `<tr><td><span class="badge p${pi+1}">P${pi+1}</span></td>
         <td>${TRADE_STRATS[doctrine[pi].trade].name}</td>
@@ -2380,49 +2551,53 @@ function renderResults(a, cfg){
         <td class="n">${(S.tradesTaken/a.games).toFixed(1)}</td>
         <td class="n">${(S.setsPeak/a.games).toFixed(2)}</td></tr>`;
     }).join("")}</tbody></table>
-    <p class="footnote">Figures are per game, and one offer is considered per player per turn. “Sets held”
-    is the most complete colours that player ever held at once, measured before any bankruptcy transfer.</p>`;
+    <p class="footnote">Figures are per game, and one offer is considered per player per turn \u2014 a player shops
+    every rival and proposes the single best deal available. \u201cSets held\u201d is the most complete colours that
+    player ever held at once, measured before any elimination windfall.</p>`;
 
-  /* ---- shape ---- */
+  /* ---- game shape ---- */
   $("#shapestats").innerHTML = `<table>
-    <thead><tr><th>Measure</th><th>Player 1</th><th>Player 2</th></tr></thead>
+    <thead><tr><th>Measure</th>${seatList.map(pi=>`<th style="text-align:right">Player ${pi+1}</th>`).join("")}</tr></thead>
     <tbody>
-      ${shapeRow("Rent collected", pi=>money(a.st[pi].rentGot/a.games))}
-      ${shapeRow("Rent paid out", pi=>money(a.st[pi].rentPaid/a.games))}
-      ${shapeRow("Bought from the bank", pi=>(a.st[pi].bought/a.games).toFixed(1))}
-      ${shapeRow("Won at auction", pi=>(a.st[pi].auctionsWon/a.games).toFixed(1))}
-      ${shapeRow("Peak net worth", pi=>money(a.peakSum[pi]/a.games))}
-      ${shapeRow("Final net worth", pi=>money(a.netSum[pi]/a.games))}
-      ${shapeRow("Trips to jail", pi=>(a.st[pi].timesJailed/a.games).toFixed(1))}
+      ${shapeRow("Win rate", seatList, pi=>pct(rate(pi)))}
+      ${shapeRow("Average finishing place", seatList, pi=>(a.placeSum[pi]/a.games).toFixed(2))}
+      ${shapeRow("Survived to the end", seatList, pi=>pct(a.survived[pi]/a.games))}
+      ${shapeRow("Rent collected", seatList, pi=>money(a.st[pi].rentGot/a.games))}
+      ${shapeRow("Rent paid out", seatList, pi=>money(a.st[pi].rentPaid/a.games))}
+      ${shapeRow("Bought from the bank", seatList, pi=>(a.st[pi].bought/a.games).toFixed(1))}
+      ${shapeRow("Won at auction", seatList, pi=>(a.st[pi].auctionsWon/a.games).toFixed(1))}
+      ${shapeRow("Peak net worth", seatList, pi=>money(a.peakSum[pi]/a.games))}
+      ${shapeRow("Final net worth", seatList, pi=>money(a.netSum[pi]/a.games))}
+      ${shapeRow("Trips to jail", seatList, pi=>(a.st[pi].timesJailed/a.games).toFixed(1))}
     </tbody></table>`;
 
   $("#method").innerHTML =
     `Method: every buy, bid and trade is priced off the long-run landing frequency of each square, the player's ` +
-    `own target house level, and how likely they are to end up holding the whole colour. <b>Committed</b> is every ` +
-    `dollar that went into a colour — deed price, auction price, house money, unmortgage fees and cash handed over ` +
-    `in trades. <b>Rent ROI</b> above 1.00× means the colour paid for itself in rent inside the game; ` +
-    `<b>Total ROI</b> also credits capital that came back out (mortgages, buildings sold, cash taken in when the ` +
-    `deeds were traded away), which is the fairer read on a colour that was flipped rather than farmed. ` +
-    `Player 1 moves first, worth roughly two points of win rate on its own — run the same pairing with the ` +
-    `doctrines swapped to see past it.`;
+    `own target house level, and how likely they are to end up holding the whole colour \u2014 which falls as the ` +
+    `table grows, since more hands compete for the same three cards. A bankruptcy eliminates a player and hands ` +
+    `their deeds to whoever bankrupted them; play continues until one is left, or until the turn cap, where the ` +
+    `richest survivor takes it. ` +
+    (cfg.alternate ? `The opening seat rotates between games.` : `Player 1 opens every game.`);
 }
+
 /* How often the player who opened the game went on to win it. Only meaningful
-   as a measure of the first move itself when the seat alternates — otherwise
+   as a measure of the first move itself when the seat rotates — otherwise
    Player 1 holds it every game and the figure is just their win rate wearing
    a different hat, which the caption says plainly. */
 function firstMoveNote(a, cfg){
   if(!a.decided) return "no decided games";
   if(!cfg.alternate)
-    return "Player 1 opened every game — turn on “Alternate first move” to separate the seat from the doctrine";
-  const edge = (a.firstWins/a.decided - 0.5) * 100;
+    return "Player 1 opened every game \u2014 turn on \u201cAlternate first move\u201d to separate the seat from the doctrine";
+  const even = 1 / a.n;
+  const edge = (a.firstWins/a.decided - even) * 100;
   const dir = Math.abs(edge) < 0.05 ? "dead level"
             : (edge > 0 ? "+" + edge.toFixed(1) + " pts to the opener"
                         : edge.toFixed(1) + " pts to the opener");
-  return `seats alternated, ${a.startedFirst[0]} / ${a.startedFirst[1]} split · ${dir}`;
+  return `seats rotated ${a.startedFirst.join(" / ")} \u00b7 ${dir} against an even ${pct(even)}`;
 }
 
-function shapeRow(label, f){
-  return `<tr><td>${label}</td><td class="n">${f(0)}</td><td class="n">${f(1)}</td></tr>`;
+function shapeRow(label, seatList, f){
+  return `<tr><td>${label}</td>${seatList.map(pi=>`<td class="n">${f(pi)}</td>`).join("")}</tr>`;
 }
 function doctrineLine(pi){
   const d = doctrine[pi];
@@ -2471,12 +2646,13 @@ function readCfg(){
     delay: clamp(parseInt($("#delay").value)||0, 0, 5000),
     render: $("#render").checked,
     alternate: $("#alternate").checked,
+    seats,
     rules: {
       auctions: $("#ruleAuction").checked,
       freeParkingPot: $("#ruleFP").checked,
       doubleOnGo: $("#ruleDoubleGo").checked
     },
-    players: doctrine.map(d=>({priority:d.priority.slice(), houseTarget:d.houseTarget,
+    players: active().map(d=>({priority:d.priority.slice(), houseTarget:d.houseTarget,
                                acquire:d.acquire, trade:d.trade}))
   };
 }
@@ -2490,7 +2666,7 @@ function setPill(t){ $("#turnpill").textContent = t; }
 
 async function runVisual(cfg, agg){
   for(let n=0; n<cfg.games && !stopFlag; n++){
-    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % 2 : 0);
+    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % cfg.players.length : 0);
     resetLog();
     setPill(`game ${n+1} / ${cfg.games}`);
     paintBoard(g); paintPlayers(g);
@@ -2507,7 +2683,7 @@ async function runVisual(cfg, agg){
       paintPlayers(g);
       const last = g.events[g.events.length-1];
       setStatus(last ? last.msg : "");
-      setPill(`game ${n+1}/${cfg.games} · turn ${Math.ceil(g.turn/2)}`);
+      setPill(`game ${n+1}/${cfg.games} · turn ${Math.ceil(g.turn/g.n)}`);
       if(cfg.delay > 0){
         await sleep(v.k === "move" || v.k === "trade" ? cfg.delay : Math.max(4, cfg.delay*0.35));
       } else if((++tick % 60) === 0) await sleep(0);
@@ -2528,7 +2704,7 @@ async function runHeadless(cfg, agg){
   for(let n=0; n<cfg.games && !stopFlag; n++){
     if(pauseFlag) await gate();
     if(stopFlag) break;
-    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % 2 : 0);
+    const g = newGame(cfg, randomSeed(), cfg.alternate ? n % cfg.players.length : 0);
     const it = playGame(g);
     while(!it.next().done){}
     collect(agg, g);
@@ -2560,7 +2736,7 @@ $("#run").onclick = () => {
   runState = "running"; stopFlag = false; pauseFlag = false;
   setButtons();
   const cfg = readCfg();
-  const agg = newAgg();
+  const agg = newAgg(cfg.players.length);
   $("#results").classList.remove("on");
   resetLog();
   runPromise = (async () => {
@@ -2604,6 +2780,17 @@ $("#reset").onclick = async () => {
   setButtons();
 };
 
+/* ---------- table size ---------- */
+$("#playerCount").onchange = () => {
+  seats = clamp(parseInt($("#playerCount").value)||2, 2, 4);
+  buildSetup();
+  buildLivePanels();
+  idleBoard();
+  $("#results").classList.remove("on");
+  resetLog();
+  setButtons();
+};
+
 /* ---------- official rules ---------- */
 const OFFICIAL_RULES = { ruleAuction:true, ruleFP:false, ruleDoubleGo:false };
 /* The reset button being live is itself the signal that something was changed. */
@@ -2635,6 +2822,7 @@ function idleBoard(){
   setPill("idle");
   setStatus("Set both doctrines, then press Run.");
 }
+buildLivePanels();
 idleBoard();
 setButtons();
 </script>
