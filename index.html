@@ -1436,9 +1436,12 @@ function bankrupt(g,p,to){
     p.cash = 0;
     for(const i of myProps(g,p)){
       g.owner[i] = to.idx;
-      // buildings are sold back to the bank on bankruptcy
+      /* Buildings are sold back to the bank on bankruptcy. A hotel on the
+         board holds no houses — the four underneath it were returned when it
+         went up — so tearing one down gives back the hotel token and nothing
+         else, or the bank would print four houses out of thin air. */
       if(g.level[i] > 0){
-        if(g.level[i] === 5){ g.hotels++; g.houses += 4; }
+        if(g.level[i] === 5) g.hotels++;
         else g.houses += g.level[i];
         g.level[i] = 0;
       }
@@ -1448,7 +1451,7 @@ function bankrupt(g,p,to){
     p.cash = 0;
     for(const i of myProps(g,p)){
       g.owner[i] = -1; g.mortgaged[i] = false;
-      if(g.level[i] === 5){ g.hotels++; g.houses += 4; } else g.houses += g.level[i];
+      if(g.level[i] === 5) g.hotels++; else g.houses += g.level[i];
       g.level[i] = 0;
     }
     msg = "P"+p.id+" is out. Their deeds return to the bank.";
@@ -2870,4 +2873,828 @@ function idleBoard(){
 buildLivePanels();
 idleBoard();
 setButtons();
+</script>
+
+<script>
+/* ==================================================================
+   SELF-TEST SUITE
+
+   Open index.html?test to run it, in the browser or on GitHub Pages.
+   Everything below is inert on a normal page load — the app boots as
+   usual and the suite only exists as window.runTests().
+
+   It lives in this file rather than a separate one on purpose: the
+   engine is a pile of top-level functions in this single script, so
+   tests that sit beside them can never drift out of sync with the
+   code they cover, and the app stays a one-file download.
+   ================================================================== */
+(function(){
+
+/* ---------- a very small harness ---------- */
+const SUITES = [];
+let current = null;
+function suite(name){ current = {name, tests:[]}; SUITES.push(current); }
+function test(name, fn){ current.tests.push({name, fn}); }
+
+function fail(msg){ throw new Error(msg); }
+function ok(cond, msg){ if(!cond) fail(msg || "expected truthy"); }
+function eq(a, b, msg){
+  if(a !== b) fail((msg ? msg + ": " : "") + "expected " + JSON.stringify(b) + ", got " + JSON.stringify(a));
+}
+function deepEq(a, b, msg){
+  const sa = JSON.stringify(a), sb = JSON.stringify(b);
+  if(sa !== sb) fail((msg ? msg + ": " : "") + "expected " + sb + ", got " + sa);
+}
+function near(a, b, tol, msg){
+  if(Math.abs(a-b) > tol) fail((msg ? msg + ": " : "") + "expected ~" + b + " (±" + tol + "), got " + a);
+}
+
+/* ---------- fixtures ---------- */
+/* A doctrine with every field filled in, so a test only states the part
+   it actually cares about. */
+const D = o => Object.assign({priority:[], houseTarget:5, acquire:"monopoly", trade:"fair"}, o||{});
+const RULES = {auctions:true, freeParkingPot:false, doubleOnGo:false};
+function mk(doctrines, opts){
+  opts = opts || {};
+  return newGame({turnCap: opts.turnCap || 200,
+                  rules: Object.assign({}, RULES, opts.rules||{}),
+                  players: doctrines}, opts.seed || 1, opts.first || 0);
+}
+/* Most engine entry points are generators whose yields drive the UI. A test
+   only wants the state they leave behind. */
+function drain(gen){ const out = []; for(const step of gen) out.push(step); return out; }
+/* Deeds only become tradeable once they have sat still for a while, so a
+   deal-table test has to start past that cooling-off window. */
+function settleTrades(g){ g.turn = 50; }
+/* Loaded dice. `loaded(5)` makes every die read 5; `loaded(1,3)` alternates,
+   so the first roll of a turn is a 1 and a 3 — four, and not a double. */
+function loaded(){
+  const faces = Array.from(arguments);
+  let k = 0;
+  return () => (faces[k++ % faces.length] - 1)/6 + 0.001;
+}
+
+const IDX = {};
+BOARD.forEach((s,i)=>{ IDX[s.n] = i; });
+
+/* ==================================================================
+   1. Board and card data
+   ================================================================== */
+suite("Board data");
+
+test("the board is 40 spaces with 28 ownable deeds", () => {
+  eq(BOARD.length, 40, "spaces");
+  eq(OWNABLE.length, 28, "ownable");
+  eq(BOARD.filter(s=>s.type==="prop").length, 22, "coloured properties");
+  eq(BOARD.filter(s=>s.type==="rail").length, 4, "railroads");
+  eq(BOARD.filter(s=>s.type==="util").length, 2, "utilities");
+});
+
+test("the fixed corners and specials sit on the right squares", () => {
+  eq(BOARD[0].type, "go");
+  eq(BOARD[10].type, "jail");
+  eq(BOARD[20].type, "free");
+  eq(BOARD[30].type, "gotojail");
+  deepEq(BOARD.map((s,i)=>s.type==="chance"?i:-1).filter(i=>i>=0), [7,22,36], "chance squares");
+  deepEq(BOARD.map((s,i)=>s.type==="chest"?i:-1).filter(i=>i>=0), [2,17,33], "chest squares");
+  deepEq(BOARD.map((s,i)=>s.type==="tax"?i:-1).filter(i=>i>=0), [4,38], "tax squares");
+});
+
+test("every deed mortgages for exactly half its price", () => {
+  for(const i of OWNABLE) eq(BOARD[i].mortgage, BOARD[i].price/2, BOARD[i].n);
+});
+
+test("colour groups match the deeds that claim them", () => {
+  let counted = 0;
+  for(const k of GROUP_KEYS){
+    for(const i of GROUPS[k].members){
+      ok(BOARD[i].price, GROUPS[k].name + " member " + i + " is not ownable");
+      eq(BOARD[i].g, k, BOARD[i].n + " group");
+      counted++;
+    }
+  }
+  eq(counted, OWNABLE.length, "every ownable deed belongs to exactly one group");
+  deepEq(GROUP_KEYS.map(k=>GROUPS[k].members.length), [2,3,3,3,3,3,3,2,4,2], "group sizes");
+});
+
+test("rent tables have six tiers and never go down", () => {
+  for(const s of BOARD){
+    if(s.type !== "prop") continue;
+    eq(s.rent.length, 6, s.n + " rent tiers");
+    for(let j=1;j<6;j++) ok(s.rent[j] >= s.rent[j-1], s.n + " rent falls at tier " + j);
+  }
+});
+
+test("the printed prices and rents are the real ones", () => {
+  eq(BOARD[IDX["Mediterranean Ave"]].price, 60);
+  eq(BOARD[IDX["Mediterranean Ave"]].rent[0], 2);
+  eq(BOARD[IDX["Boardwalk"]].price, 400);
+  eq(BOARD[IDX["Boardwalk"]].rent[5], 2000);
+  eq(BOARD[IDX["Reading RR"]].price, 200);
+  eq(BOARD[IDX["Electric Company"]].price, 150);
+  deepEq(GROUP_KEYS.map(k=>GROUPS[k].house), [50,50,100,100,150,150,200,200,0,0], "house prices per colour");
+});
+
+test("both card decks hold sixteen cards", () => {
+  eq(CHANCE.length, 16);
+  eq(CHEST.length, 16);
+  for(const c of CHANCE.concat(CHEST)){
+    ok(typeof c.t === "string" && c.t.length, "card needs text");
+    ok(c.a && Object.keys(c.a).length, c.t + " does nothing");
+  }
+});
+
+test("the landing-frequency table covers the board and sums to ~100%", () => {
+  eq(FREQ.length, 40);
+  eq(FREQ[30], 0, "Go To Jail is never occupied");
+  near(FREQ.reduce((a,b)=>a+b,0), 100, 1.5, "total landing share");
+});
+
+/* ==================================================================
+   2. Rent
+   ================================================================== */
+suite("Rent");
+
+test("an unimproved deed pays its base rent, and double inside a full set", () => {
+  const g = mk([D(), D()]);
+  g.owner[1] = 0;
+  eq(rentFor(g,1,7), 2, "single brown deed");
+  g.owner[3] = 0;
+  eq(rentFor(g,1,7), 4, "brown set, still unimproved");
+});
+
+test("houses and hotels charge the printed tier", () => {
+  const g = mk([D(), D()]);
+  g.owner[1] = 0; g.owner[3] = 0;
+  for(let lvl=1; lvl<=5; lvl++){
+    g.level[1] = lvl;
+    eq(rentFor(g,1,7), BOARD[1].rent[lvl], "brown at level " + lvl);
+  }
+});
+
+test("a mortgaged deed earns nothing, set or no set", () => {
+  const g = mk([D(), D()]);
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.mortgaged[1] = true;
+  eq(rentFor(g,1,7), 0);
+});
+
+test("railroads pay 25/50/100/200 by the number held", () => {
+  const g = mk([D(), D()]);
+  const rails = GROUPS.rail.members;
+  const expect = [25,50,100,200];
+  rails.forEach((i,k)=>{
+    g.owner[i] = 0;
+    eq(rentFor(g, rails[0], 7), expect[k], (k+1) + " railroads");
+  });
+});
+
+test("utilities charge 4x the dice, or 10x with both", () => {
+  const g = mk([D(), D()]);
+  g.owner[12] = 0;
+  eq(rentFor(g,12,9), 36, "one utility on a roll of 9");
+  g.owner[28] = 0;
+  eq(rentFor(g,12,9), 90, "both utilities on a roll of 9");
+  eq(rentFor(g,28,4), 40, "both utilities on a roll of 4");
+});
+
+test("rent moves from the visitor to the owner, and nobody pays themselves", () => {
+  const g = mk([D(), D()]);
+  g.owner[1] = 0;
+  const p2 = g.players[1];
+  p2.pos = 1;
+  drain(landOn(g, p2, 7));
+  eq(p2.cash, 1498, "visitor pays base rent");
+  eq(g.players[0].cash, 1502, "owner collects it");
+
+  const p1 = g.players[0];
+  p1.pos = 1;
+  const before = p1.cash;
+  drain(landOn(g, p1, 7));
+  eq(p1.cash, before, "landing on your own deed is free");
+});
+
+/* ==================================================================
+   3. Movement, jail and the squares
+   ================================================================== */
+suite("Movement and jail");
+
+test("passing GO pays $200, landing on it pays the same", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  p.pos = 38; advance(g,p,4);
+  eq(p.pos, 2, "wraps around the board");
+  eq(p.cash, 1700, "collects for passing GO");
+  p.pos = 36; p.cash = 1500; advance(g,p,4);
+  eq(p.pos, 0);
+  eq(p.cash, 1700, "collects for landing exactly on GO");
+});
+
+test("the double-on-GO house rule pays $400, and only on GO", () => {
+  const g = mk([D(), D()], {rules:{doubleOnGo:true}});
+  const p = g.players[0];
+  p.pos = 36; advance(g,p,4);
+  eq(p.cash, 1900, "landed on GO");
+  p.pos = 38; p.cash = 1500; advance(g,p,4);
+  eq(p.cash, 1700, "merely passed it");
+});
+
+test("going to jail skips GO and its $200", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  p.pos = 30; p.doubles = 2;
+  goToJail(g,p);
+  eq(p.pos, 10, "sits in jail");
+  eq(p.jail, true);
+  eq(p.jailTurns, 0);
+  eq(p.doubles, 0, "the doubles run is broken");
+  eq(p.cash, 1500, "no GO money on the way");
+});
+
+test("a third double in one turn sends the roller to jail", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  /* Every die comes up 5, so each roll is a double of ten: GO to Jail
+     (visiting), to Free Parking, and the third double ends the turn behind
+     bars. All three squares are inert, so nothing else touches the dice. */
+  g.rng = loaded(5);
+  drain(takeTurn(g));
+  eq(p.jail, true, "should be jailed on the third double");
+  eq(p.pos, 10);
+  eq(p.cash, 1500, "never passed GO");
+});
+
+test("the nearest railroad and utility wrap around the board", () => {
+  const g = mk([D(), D()]);
+  deepEq([7,22,36].map(pos => nearest(g,{pos},"rail")), [15,25,5], "from each Chance square");
+  deepEq([7,22,36].map(pos => nearest(g,{pos},"util")), [12,28,12], "from each Chance square");
+});
+
+test("three turns in jail ends in a $50 fine and a move", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0], rival = g.players[1];
+  /* A player only sits out the full sentence when the board outside is
+     frightening enough to be worth waiting through, so give the rival a
+     developed Dark Blue and leave P1 too thin to want to walk into it. */
+  g.owner[37] = 1; g.owner[39] = 1; g.level[39] = 5; g.hotels--;
+  p.jail = true; p.jailTurns = 2; p.cash = 200; p.pos = 10;
+  eq(wantsOutOfJail(g,p), false, "fixture no longer keeps the player inside");
+
+  g.rng = loaded(1,3);                            // a four, and not a double
+  drain(takeTurn(g));
+  eq(p.jail, false, "still in jail after the third turn");
+  eq(p.cash, 150, "the $50 fine was not charged exactly once");
+  eq(p.pos, 14, "did not move on the roll that freed it");
+});
+
+test("luxury tax is a flat $75 and income tax is capped at $200", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  p.pos = 38;
+  drain(landOn(g,p,7));
+  eq(p.cash, 1425, "luxury tax");
+
+  const g2 = mk([D(), D()]);
+  const q = g2.players[0];
+  q.pos = 4; q.cash = 1500;                       // net worth 1500 -> 10% = 150
+  drain(landOn(g2,q,7));
+  eq(q.cash, 1350, "income tax at 10% of net worth");
+
+  const g3 = mk([D(), D()]);
+  const r = g3.players[0];
+  r.pos = 4; r.cash = 9000;                       // 10% would be 900
+  drain(landOn(g3,r,7));
+  eq(r.cash, 8800, "income tax capped at $200");
+});
+
+/* ==================================================================
+   4. Building
+   ================================================================== */
+suite("Building");
+
+test("houses only go up on a complete, unmortgaged colour", () => {
+  const g = mk([D({houseTarget:3}), D()]);
+  g.players[0].cash = 5000;
+  g.owner[1] = 0;                                  // half a brown set
+  buildPhase(g, g.players[0]);
+  eq(g.level[1], 0, "no set, no houses");
+
+  g.owner[3] = 0;
+  g.mortgaged[3] = true;
+  buildPhase(g, g.players[0]);
+  eq(g.level[1], 0, "a mortgaged deed freezes the whole colour");
+
+  g.mortgaged[3] = false;
+  buildPhase(g, g.players[0]);
+  eq(g.level[1], 3, "builds to the doctrine's target");
+  eq(g.level[3], 3);
+});
+
+test("building stops at the doctrine's house target", () => {
+  for(let t=1; t<=4; t++){
+    const g = mk([D({houseTarget:t}), D()]);
+    g.players[0].cash = 5000;
+    g.owner[1] = 0; g.owner[3] = 0;
+    buildPhase(g, g.players[0]);
+    deepEq([g.level[1], g.level[3]], [t,t], "target " + t);
+  }
+});
+
+test("a hotel takes a hotel token and hands four houses back", () => {
+  const g = mk([D({houseTarget:5}), D()]);
+  g.players[0].cash = 10000;
+  g.owner[1] = 0; g.owner[3] = 0;
+  buildPhase(g, g.players[0]);
+  deepEq([g.level[1], g.level[3]], [5,5], "two hotels");
+  eq(g.hotels, 10, "two hotel tokens spent");
+  eq(g.houses, 32, "the eight houses underneath went back to the bank");
+});
+
+test("nothing is built while the bank is out of houses", () => {
+  const g = mk([D({houseTarget:4}), D()]);
+  g.players[0].cash = 5000;
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.houses = 0;
+  buildPhase(g, g.players[0]);
+  deepEq([g.level[1], g.level[3]], [0,0], "the shortage blocks building");
+});
+
+test("a colour is built up evenly", () => {
+  const g = mk([D({houseTarget:5}), D()]);
+  g.players[0].cash = 10000;
+  for(const i of GROUPS.lightblue.members) g.owner[i] = 0;
+  g.houses = 7;                                    // runs dry part-way up
+  buildPhase(g, g.players[0]);
+  const lv = GROUPS.lightblue.members.map(i=>g.level[i]);
+  ok(Math.max(...lv) - Math.min(...lv) <= 1, "levels differ by more than one: " + lv.join(","));
+});
+
+test("a player never builds past what they can afford", () => {
+  const g = mk([D({houseTarget:5}), D()]);
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.players[0].cash = 260;                         // brown houses cost $50
+  buildPhase(g, g.players[0]);
+  ok(g.players[0].cash >= 0, "spent into the red");
+});
+
+/* ==================================================================
+   5. Mortgaging and liquidation
+   ================================================================== */
+suite("Mortgaging");
+
+test("mortgaging pays half, lifting it costs half plus 10%", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  g.owner[39] = 0;                                 // Boardwalk, $400
+  p.cash = 0;
+  raiseCash(g, p, 150);
+  eq(g.mortgaged[39], true, "the deed went under");
+  eq(p.cash, 200, "half the price in hand");
+
+  p.cash = 10000;
+  unmortgagePhase(g, p);
+  eq(g.mortgaged[39], false, "lifted again");
+  eq(p.cash, 10000 - Math.ceil(200*1.1), "half plus the 10% fee");
+});
+
+test("cash is raised by mortgaging before any building is sold", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  g.owner[1] = 0; g.owner[3] = 0; g.owner[39] = 0;
+  g.level[1] = 2; g.level[3] = 2; g.houses -= 4;
+  p.cash = 0;
+  raiseCash(g, p, 100);
+  eq(g.mortgaged[39], true, "the spare deed went first");
+  deepEq([g.level[1], g.level[3]], [2,2], "the houses stayed up");
+});
+
+test("selling a building refunds half and returns the token to the bank", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.level[1] = 2; g.level[3] = 2; g.houses -= 4;
+  p.cash = 0;
+  raiseCash(g, p, 25);
+  eq(p.cash, 25, "half of a $50 house");
+  eq(g.houses, 29, "the house went back on the shelf");
+  deepEq([g.level[1], g.level[3]].sort(), [1,2], "sold off the top, keeping the colour even");
+});
+
+/* ==================================================================
+   6. Auctions
+   ================================================================== */
+suite("Auctions");
+
+test("an auction clears at one bid above the runner-up", () => {
+  const g = mk([D(), D({acquire:"collector"})]);
+  const i = IDX["Boardwalk"];
+  const maxes = g.players.map(p => maxBid(g,p,i));
+  const sorted = maxes.slice().sort((a,b)=>b-a);
+  const expected = Math.max(10, Math.min(sorted[0], sorted[1] + 10));
+  const cashBefore = g.players.map(p=>p.cash);
+  drain(auction(g, i, g.players[0]));
+  ok(g.owner[i] >= 0, "the lot sold");
+  const w = g.owner[i];
+  eq(cashBefore[w] - g.players[w].cash, expected, "paid one step above the underbidder");
+  ok(expected <= maxes[w], "nobody pays above their own ceiling");
+});
+
+test("a lot nobody can bid on goes unsold", () => {
+  const g = mk([D(), D()]);
+  for(const p of g.players) p.cash = 0;
+  const i = IDX["Boardwalk"];
+  drain(auction(g, i, g.players[0]));
+  eq(g.owner[i], -1, "still with the bank");
+});
+
+/* ==================================================================
+   7. Trading — including the colour-priority regression
+   ================================================================== */
+suite("Trading");
+
+test("the Never Trade doctrine neither offers nor accepts", () => {
+  const g = mk([D({trade:"never"}), D({trade:"never"})]);
+  settleTrades(g);
+  g.owner[1] = 0; g.owner[3] = 1; g.owner[39] = 1;
+  eq(buildOffer(g, g.players[0]), null, "made an offer anyway");
+  eq(evaluateOffer(g, {from:2, to:1, get:[1], give:[3], cash:1000}), false, "accepted one anyway");
+});
+
+test("a trade moves the deeds and conserves the cash on the table", () => {
+  const g = mk([D(), D()]);
+  g.owner[1] = 0; g.owner[39] = 1;
+  const offer = {from:1, to:2, get:[39], give:[1], cash:250};
+  const totalBefore = g.players[0].cash + g.players[1].cash;
+  executeTrade(g, offer);
+  eq(g.owner[39], 0, "buyer got the deed");
+  eq(g.owner[1], 1, "seller got the deed");
+  eq(g.players[0].cash, 1250, "cash left the buyer");
+  eq(g.players[1].cash, 1750, "and reached the seller");
+  eq(g.players[0].cash + g.players[1].cash, totalBefore, "no money created or destroyed");
+});
+
+test("nobody offers away a deed out of a colour they have completed", () => {
+  const g = mk([D(), D()]);
+  settleTrades(g);
+  for(const i of GROUPS.lightblue.members) g.owner[i] = 0;
+  g.owner[39] = 1;
+  const offer = bestOfferAgainst(g, g.players[0], g.players[1]);
+  if(offer) for(const i of offer.give)
+    ok(!hasMonopoly(g, g.players[0], BOARD[i].g), "offered " + BOARD[i].n + " out of a complete set");
+});
+
+/* ---- the reported bug ----------------------------------------------
+   P1 is playing the orange doctrine and holds one orange; P2 holds
+   another, so P1's deed can never become a set on its own and prices
+   out BELOW its printed value. The old guard only protected a
+   prioritised deed when its valuation exceeded that price, so this is
+   exactly the deed it let go — the one the doctrine exists to hold.
+   -------------------------------------------------------------------- */
+test("a prioritised deed is never offered away, even when it prices below cost", () => {
+  const g = mk([D({priority:["orange"]}), D()]);
+  settleTrades(g);
+  const stJames = IDX["St. James Pl"], tennessee = IDX["Tennessee Ave"];
+  g.owner[stJames] = 0;
+  g.owner[tennessee] = 1;
+  g.owner[IDX["Kentucky Ave"]] = 1;
+
+  /* Pin the conditions the old guard tripped over, so this test still
+     means something if the valuation model is retuned later. */
+  ok(isDeadCard(g, g.players[0], stJames), "fixture no longer reproduces a dead card");
+  ok(nv(g, g.players[0], stJames) <= BOARD[stJames].price,
+     "fixture no longer prices the deed below cost — the regression is untested");
+
+  const offer = bestOfferAgainst(g, g.players[0], g.players[1]);
+  if(offer) ok(!offer.give.includes(stJames), "offered away its own target colour");
+});
+
+test("no price buys a prioritised deed out of its holder", () => {
+  const g = mk([D({trade:"aggressive"}), D({priority:["orange"]})]);
+  settleTrades(g);
+  const tennessee = IDX["Tennessee Ave"];
+  g.owner[tennessee] = 1;
+  g.players[0].cash = 5000;
+  eq(evaluateOffer(g, {from:1, to:2, get:[tennessee], give:[], cash:2000}), false,
+     "sold a target colour for cash");
+  eq(evaluateOffer(g, {from:1, to:2, get:[tennessee], give:[IDX["Boardwalk"]], cash:2000}), false,
+     "sold a target colour for Boardwalk and cash");
+});
+
+test("a prioritising player goes after the colour it is missing", () => {
+  const g = mk([D({priority:["orange"]}), D()]);
+  settleTrades(g);
+  const tennessee = IDX["Tennessee Ave"];
+  g.owner[tennessee] = 1;                          // the rival's only deed
+  g.owner[6] = 0; g.owner[9] = 0;
+  const offer = buildOffer(g, g.players[0]);
+  ok(offer, "made no attempt on the colour it is built around");
+  deepEq(offer.get, [tennessee], "went after something else");
+});
+
+/* Liquidation reaches for the least valuable deed first, so a cheap deed in
+   the doctrine's own colour is exactly what it would otherwise pawn. The
+   fixture below is chosen so plain valuation and the target-colour weighting
+   disagree — otherwise the test would pass whether the weighting exists or
+   not, and would be guarding nothing. */
+test("a target colour is mortgaged only after everything else", () => {
+  const g = mk([D({priority:["brown"]}), D()]);
+  const p = g.players[0];
+  const target = IDX["Mediterranean Ave"], spare = IDX["Illinois Ave"];
+  g.owner[target] = 0;
+  g.owner[spare] = 0;
+  ok(nv(g,p,target) < nv(g,p,spare),
+     "fixture no longer discriminates — plain valuation must prefer the target deed");
+
+  p.cash = 0;
+  raiseCash(g, p, 50);
+  eq(g.mortgaged[spare], true, "the spare deed should have gone first");
+  eq(g.mortgaged[target], false, "mortgaged the target colour while a spare was free");
+});
+
+/* ==================================================================
+   8. Bankruptcy
+   ================================================================== */
+suite("Bankruptcy");
+
+/* A hotel standing on the board holds one hotel token and no houses — the
+   four underneath went back to the bank the moment it went up. Both
+   bankruptcy branches have to unwind it on those terms or the bank quietly
+   gains houses, which would loosen the very shortage the simulator models. */
+function stage(g, seat){
+  g.owner[1] = seat; g.owner[3] = seat;
+  g.level[1] = 5; g.level[3] = 3;
+  g.hotels -= 1; g.houses -= 3;
+  eq(g.houses, 29, "fixture house tokens"); eq(g.hotels, 11, "fixture hotel tokens");
+}
+
+test("a creditor inherits the estate and the buildings go back to the bank", () => {
+  const g = mk([D(), D()]);
+  const loser = g.players[0], winner = g.players[1];
+  stage(g, 0);
+  loser.cash = 40;
+  bankrupt(g, loser, winner);
+  eq(loser.bankrupt, true);
+  eq(loser.cash, 0, "the loser is stripped");
+  eq(myProps(g, loser).length, 0, "and holds no deeds");
+  eq(g.owner[1], 1, "the deeds passed to the creditor");
+  deepEq([g.level[1], g.level[3]], [0,0], "buildings were sold back");
+  eq(g.houses, 32, "house tokens returned");
+  eq(g.hotels, 12, "hotel token returned");
+  eq(winner.cash, 1540, "the creditor took the cash on hand");
+});
+
+test("with no creditor the deeds return to the bank unmortgaged", () => {
+  const g = mk([D(), D(), D()]);
+  const loser = g.players[0];
+  stage(g, 0);
+  g.owner[39] = 0; g.mortgaged[39] = true;
+  bankrupt(g, loser, null);
+  eq(g.owner[39], -1, "back with the bank");
+  eq(g.mortgaged[39], false, "and the mortgage cleared");
+  eq(g.houses, 32, "house tokens returned");
+  eq(g.hotels, 12, "hotel token returned");
+  eq(g.over, false, "two players left, so play continues");
+});
+
+test("the game ends when one player is left standing", () => {
+  const g = mk([D(), D()]);
+  bankrupt(g, g.players[0], g.players[1]);
+  eq(g.over, true);
+  eq(g.winner, 2);
+  eq(g.reason, "bankruptcy");
+});
+
+/* ==================================================================
+   9. Whole-game invariants
+
+   The unit tests above pin individual rules. This sweep plays a few
+   hundred full games across every doctrine, board rule and player
+   count, and re-checks the rules that must hold at every single
+   turn boundary — the ones a future change is most likely to break
+   somewhere far from where it was made.
+   ================================================================== */
+suite("Full-game invariants");
+
+const SWEEP_COLOURS = PICKABLE.slice();
+const SWEEP_TRADES = Object.keys(TRADE_STRATS);
+const SWEEP_ACQUIRE = Object.keys(ACQUIRE_STRATS);
+
+function sweepConfig(seed){
+  const n = 2 + (seed % 3);
+  const players = [];
+  for(let j=0;j<n;j++) players.push({
+    priority: seed % 4 === 0 ? [] : [SWEEP_COLOURS[(seed*3 + j*5) % SWEEP_COLOURS.length]],
+    houseTarget: 1 + ((seed + j) % 5),
+    acquire: SWEEP_ACQUIRE[(seed + j) % SWEEP_ACQUIRE.length],
+    trade: SWEEP_TRADES[(seed + j) % SWEEP_TRADES.length]
+  });
+  return {turnCap: 200,
+          rules: {auctions: seed%2===0, freeParkingPot: seed%3===0, doubleOnGo: seed%5===0},
+          players};
+}
+
+/* Every check the sweep applies to a mid-game state. Each returns a
+   complaint string, or nothing when the rule holds. */
+const STATE_RULES = {
+  "house tokens are conserved": g => {
+    let h = 0; for(let i=0;i<40;i++) if(g.level[i] < 5) h += g.level[i];
+    if(g.houses + h !== 32) return "bank " + g.houses + " + board " + h + " != 32";
+  },
+  "hotel tokens are conserved": g => {
+    let ho = 0; for(let i=0;i<40;i++) if(g.level[i] === 5) ho++;
+    if(g.hotels + ho !== 12) return "bank " + g.hotels + " + board " + ho + " != 12";
+  },
+  "no player holds negative cash": g => {
+    for(const p of g.players) if(p.cash < 0) return "P" + p.id + " at " + p.cash;
+  },
+  "a bankrupt player holds nothing": g => {
+    for(const p of g.players){
+      if(!p.bankrupt) continue;
+      if(p.cash !== 0) return "P" + p.id + " still holds " + p.cash;
+      if(myProps(g,p).length) return "P" + p.id + " still holds deeds";
+    }
+  },
+  "tokens stay on the board": g => {
+    for(const p of g.players) if(p.pos < 0 || p.pos > 39) return "P" + p.id + " at " + p.pos;
+  },
+  "only ownable squares have owners": g => {
+    for(let i=0;i<40;i++) if(!BOARD[i].price && g.owner[i] !== -1) return BOARD[i].n;
+  },
+  "owners are real, live seats": g => {
+    for(const i of OWNABLE){
+      const o = g.owner[i];
+      if(o === -1) continue;
+      if(o < 0 || o >= g.n) return BOARD[i].n + " owned by seat " + o;
+      if(g.players[o].bankrupt) return BOARD[i].n + " owned by a bankrupt player";
+    }
+  },
+  "buildings only stand on a complete colour": g => {
+    for(const i of OWNABLE){
+      if(g.level[i] <= 0) continue;
+      if(BOARD[i].type !== "prop") return BOARD[i].n + " is not a colour property";
+      const o = g.players[g.owner[i]];
+      if(!o || !hasMonopoly(g, o, BOARD[i].g)) return BOARD[i].n + " has no set behind it";
+    }
+  },
+  "nothing is built on a mortgaged deed": g => {
+    for(const i of OWNABLE) if(g.level[i] > 0 && g.mortgaged[i]) return BOARD[i].n;
+  },
+  /* Houses go up and come down evenly. The one legal exception: when the
+     bank has fewer than four houses left, a hotel cannot be broken into
+     houses and must be sold back whole, which drops that deed straight to
+     zero while its neighbours keep their hotels. That leaves every deed in
+     the colour at either 0 or a hotel and nothing in between, so the shape
+     is still checked — just against the wider rule. */
+  "a colour is built and sold down evenly": g => {
+    for(const k of GROUP_KEYS){
+      const lv = GROUPS[k].members.map(i=>g.level[i]);
+      if(Math.max(...lv) - Math.min(...lv) <= 1) continue;
+      if(lv.every(v => v === 0 || v === 5)) continue;   // razed hotel, see above
+      return GROUPS[k].name + " at " + lv.join(",");
+    }
+  },
+};
+
+test("300 full games across every doctrine break no rule", () => {
+  const broken = {};
+  let games = 0, finished = 0, turns = 0;
+
+  for(let seed = 1; seed <= 300; seed++){
+    const cfg = sweepConfig(seed);
+    const g = newGame(cfg, seed, seed % cfg.players.length);
+    const checkNow = where => {
+      for(const name in STATE_RULES){
+        const why = STATE_RULES[name](g);
+        if(why && !broken[name]) broken[name] = where + ": " + why;
+      }
+    };
+
+    for(const step of playGame(g)){
+      if(step.k === "end") checkNow("seed " + seed + " turn " + g.turn);
+      if(step.k === "trade" && step.accepted){
+        /* The rule this suite exists for, checked at the moment of the deal
+           rather than inferred from the board afterwards. */
+        const o = step.offer;
+        const from = g.players[o.from-1], to = g.players[o.to-1];
+        for(const i of o.give) if(from.cfg.priority.includes(BOARD[i].g) && !broken["a prioritised colour is never traded away"])
+          broken["a prioritised colour is never traded away"] = "seed " + seed + ": P" + from.id + " gave " + BOARD[i].n;
+        for(const i of o.get) if(to.cfg.priority.includes(BOARD[i].g) && !broken["a prioritised colour is never traded away"])
+          broken["a prioritised colour is never traded away"] = "seed " + seed + ": P" + to.id + " gave " + BOARD[i].n;
+        for(const i of o.give.concat(o.get)) if(g.level[i] > 0 && !broken["built deeds never change hands"])
+          broken["built deeds never change hands"] = "seed " + seed + ": " + BOARD[i].n;
+      }
+    }
+    checkNow("seed " + seed + " final");
+    games++; turns += g.turn;
+    if(g.over) finished++;
+    if(g.order.length !== cfg.players.length && !broken["every player is placed in the finishing order"])
+      broken["every player is placed in the finishing order"] =
+        "seed " + seed + ": " + g.order.length + " of " + cfg.players.length;
+    if(!g.winner && g.reason !== "turn cap" && !broken["every game names a winner"])
+      broken["every game names a winner"] = "seed " + seed;
+  }
+
+  eq(games, 300, "games played");
+  eq(finished, 300, "every game reached an end state");
+  ok(turns > 300, "games are actually being played out");
+  const names = Object.keys(broken);
+  ok(names.length === 0, names.map(n => n + " [" + broken[n] + "]").join(" ; "));
+});
+
+test("the same seed replays exactly", () => {
+  for(const seed of [7, 42, 101]){
+    const cfg = sweepConfig(seed);
+    const run = () => {
+      const g = newGame(cfg, seed, 0);
+      for(const s of playGame(g)) void s;
+      return JSON.stringify({owner:g.owner, level:g.level, mortgaged:g.mortgaged,
+                             cash:g.players.map(p=>Math.round(p.cash)),
+                             winner:g.winner, reason:g.reason, order:g.order,
+                             events:g.events.length});
+    };
+    eq(run(), run(), "seed " + seed + " did not replay identically");
+  }
+});
+
+test("the turn cap always produces a result", () => {
+  const cfg = {turnCap: 12, rules:{auctions:true, freeParkingPot:false, doubleOnGo:false},
+               players:[D({trade:"never"}), D({trade:"never"})]};
+  const g = newGame(cfg, 3, 0);
+  for(const s of playGame(g)) void s;
+  eq(g.over, true, "the cap did not stop the game");
+  ok(g.reason === "turn cap" || g.reason === "bankruptcy", "no reason recorded");
+  eq(g.order.length, 2, "not everyone was ranked");
+});
+
+/* ==================================================================
+   Runner
+   ================================================================== */
+function runTests(){
+  const results = [];
+  let pass = 0, fail = 0;
+  for(const s of SUITES){
+    for(const t of s.tests){
+      const started = performance.now();
+      try {
+        t.fn();
+        results.push({suite:s.name, name:t.name, ok:true, ms:performance.now()-started});
+        pass++;
+      } catch(e){
+        results.push({suite:s.name, name:t.name, ok:false, ms:performance.now()-started,
+                      err: e && e.message ? e.message : String(e)});
+        fail++;
+      }
+    }
+  }
+  return {pass, fail, total:pass+fail, results,
+          failures: results.filter(r=>!r.ok).map(r=>r.suite + " / " + r.name + ": " + r.err)};
+}
+window.runTests = runTests;
+
+/* ---------- ?test renders the run ---------- */
+if(/(^|[?&])test($|[=&])/.test(location.search)){
+  const started = performance.now();
+  const r = runTests();
+  const elapsed = Math.round(performance.now() - started);
+  document.title = (r.fail ? "FAIL " + r.fail + " — " : "PASS — ") + "Monopoly self-test";
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  let html = `<style>
+    body{margin:0;padding:32px;font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:#faf9f7;color:#1b1a17}
+    h1{font-size:20px;margin:0 0 4px}
+    .sum{font-size:15px;margin:0 0 24px;color:#5a564e}
+    .sum b.bad{color:#b3261e} .sum b.good{color:#1e7d43}
+    h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#8a857a;
+       margin:26px 0 8px;border-bottom:1px solid #e4e0d8;padding-bottom:6px}
+    .t{display:flex;gap:10px;padding:5px 0;align-items:baseline}
+    .m{flex:0 0 auto;font-weight:700;font-size:12px}
+    .m.p{color:#1e7d43} .m.f{color:#b3261e}
+    .n{flex:1 1 auto}
+    .ms{color:#a8a294;font-size:12px;font-variant-numeric:tabular-nums}
+    .e{margin:2px 0 8px 32px;padding:8px 10px;background:#fdeceb;border-left:3px solid #b3261e;
+       border-radius:3px;color:#7d1a14;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+       white-space:pre-wrap;word-break:break-word}
+    a{color:#5a564e}
+    @media (prefers-color-scheme:dark){
+      body{background:#131312;color:#e8e5df}
+      .sum{color:#a8a294} h2{color:#7d7a72;border-color:#2b2a27}
+      .e{background:#2a1614;border-left-color:#e0645a;color:#f0b8b2}
+      a{color:#a8a294}
+    }
+  </style>`;
+  html += `<h1>Monopoly Strategy Lab — self-test</h1>`;
+  html += `<p class="sum">${r.fail
+      ? `<b class="bad">${r.fail} failed</b>, ${r.pass} passed`
+      : `<b class="good">all ${r.pass} passed</b>`} · ${elapsed} ms · <a href="${location.pathname}">back to the app</a></p>`;
+  let lastSuite = null;
+  for(const t of r.results){
+    if(t.suite !== lastSuite){ html += `<h2>${esc(t.suite)}</h2>`; lastSuite = t.suite; }
+    html += `<div class="t"><span class="m ${t.ok?"p":"f"}">${t.ok?"PASS":"FAIL"}</span>`+
+            `<span class="n">${esc(t.name)}</span>`+
+            `<span class="ms">${t.ms >= 1 ? Math.round(t.ms)+" ms" : ""}</span></div>`;
+    if(!t.ok) html += `<div class="e">${esc(t.err)}</div>`;
+  }
+  document.body.innerHTML = html;
+}
+})();
 </script>
