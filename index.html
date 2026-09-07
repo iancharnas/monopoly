@@ -1227,6 +1227,12 @@ function completesFor(g,pl,i){
   const grp = BOARD[i].g;
   return ownedIn(g,pl,grp) === GROUPS[grp].members.length - 1;
 }
+/* A colour the doctrine has flagged is the whole point of that doctrine, so a
+   deed in it is not merchandise. Valuation alone can't enforce that: a lone
+   orange sitting behind a rival's orange prices out as a dead card, and the
+   deal table would happily trade it away — which is exactly the deed the
+   player is supposed to be building around. This is a hard rule instead. */
+function isTargetColour(pl,i){ return pl.cfg.priority.includes(BOARD[i].g); }
 function groupClear(g,i){    // no buildings anywhere in the colour
   const grp = BOARD[i].g;
   return !GROUPS[grp].members.some(m=>g.level[m]>0);
@@ -1349,7 +1355,8 @@ function raiseCash(g,p,need){
     for(const i of myProps(g,p)){
       if(g.mortgaged[i] || g.level[i] > 0) continue;
       if(hasMonopoly(g,p,BOARD[i].g) && GROUPS[BOARD[i].g].members.some(m=>g.level[m]>0)) continue;
-      const v = nv(g,p,i);
+      // a target colour goes under the mortgage last, ahead of nothing but ruin
+      const v = nv(g,p,i) * (isTargetColour(p,i) ? 3 : 1);
       if(v < ms){ ms = v; mi = i; }
     }
     if(mi >= 0){
@@ -1387,7 +1394,7 @@ function raiseCash(g,p,need){
     let li = -1, ls = Infinity;
     for(const i of myProps(g,p)){
       if(g.mortgaged[i] || g.level[i] > 0) continue;
-      const v = nv(g,p,i);
+      const v = nv(g,p,i) * (isTargetColour(p,i) ? 3 : 1);
       if(v < ls){ ls = v; li = i; }
     }
     if(li >= 0){
@@ -1525,9 +1532,13 @@ function bestOfferAgainst(g,p,opp){
   let best = null;
 
   for(const W of oppHas){
+    /* A colour the holder is themselves built around is nailed down — asking
+       burns this turn's one offer on a certain refusal. */
+    if(isTargetColour(opp,W)) continue;
     const wantVal = nv(g,p,W) + denialValue(g,p,W)*(ts==="blocker"?1:0.35);
     const oppLose = nv(g,opp,W);
-    if(wantVal < BOARD[W].price*0.7) continue;
+    const target = isTargetColour(p,W);   // a deed in a colour this doctrine is built on
+    if(!target && wantVal < BOARD[W].price*0.7) continue;
 
     const gives = [null, ...mineHas];
     for(const X of gives){
@@ -1542,7 +1553,7 @@ function bestOfferAgainst(g,p,opp){
           if(ts === "fair" || ts === "blocker") continue;  // hard refusal
           if(ts === "winwin" && !iComplete) continue;      // only as a mutual deal
         }
-        if(p.cfg.priority.includes(xg) && nv(g,p,X) > BOARD[X].price) continue;
+        if(isTargetColour(p,X)) continue;                 // target colours never leave
       }
       let giveVal = X === null ? 0 : nv(g,p,X);
       const oppGain = X === null ? 0 : nv(g,opp,X);
@@ -1561,16 +1572,21 @@ function bestOfferAgainst(g,p,opp){
         /* Cash in hand is worth more than any valuation model says, because it
            is the only thing standing between you and bankruptcy. Nobody hands
            over $900 for a $180 deed, however good the colour looks. */
-        const cashCap = Math.min(myBudget, BOARD[W].price*1.5 + 150, p.cash*0.45);
+        const cashCap = target
+          ? Math.min(myBudget, BOARD[W].price*2.6 + 300, p.cash*0.7)
+          : Math.min(myBudget, BOARD[W].price*1.5 + 150, p.cash*0.45);
         if(C > cashCap) continue;
       } else {
         C = Math.max(C, -oppBudget);
       }
-      // the deal has to actually be worth the paperwork
+      /* The deal has to actually be worth the paperwork — except in a target
+         colour, where a wafer-thin margin still beats not owning the deed. */
       const myNet = wantVal*prem - giveVal - C;
-      if(myNet <= wantVal*0.12) continue;
+      if(myNet <= wantVal*(target ? 0.02 : 0.12)) continue;
       // hoarder wants to actually extract money
-      const score = myNet + (ts === "hoarder" ? -C*0.5 : 0);
+      let score = myNet + (ts === "hoarder" ? -C*0.5 : 0);
+      // and when several deals are on the table, the target colour goes first
+      if(target) score *= 2.2;
       if(!best || score > best.score){
         best = {score, from:p.id, to:opp.id, get:[W], give:X===null?[]:[X], cash:C,
                 note:noteFor(g,p,opp,W,X,C)};
@@ -1594,6 +1610,8 @@ function evaluateOffer(g,offer){
   const p = g.players.find(x=>x.id===offer.from);
   const opp = g.players.find(x=>x.id===offer.to);
   if(opp.cfg.trade === "never") return false;
+  // no price buys a deed out of a colour this player is building around
+  if(offer.get.some(i => isTargetColour(opp,i))) return false;
   let gain = 0, lose = 0;
   for(const i of offer.give) gain += nv(g,opp,i);
   for(const i of offer.get)  lose += nv(g,opp,i);
