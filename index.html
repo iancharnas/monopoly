@@ -927,7 +927,8 @@ const TRADE_STRATS = {
 };
 const ACQUIRE_STRATS = {
   monopoly:  {name:"Monopoly Hunter", blurb:"Buys only what builds toward a complete colour set; walks away from cards an opponent has already split."},
-  collector: {name:"Everything Buyer",blurb:"Buys every unowned property it can afford, monopoly or not."}
+  collector: {name:"Everything Buyer",blurb:"Buys every unowned property it can afford, monopoly or not."},
+  shortage:  {name:"Housing Shortage",blurb:"Chases every buildable colour set it can hold, runs a lean till to get houses down on all of them, and refuses to trade four houses up for a hotel while houses are scarce — only 32 exist and a hotel hands four back. Pair with Build to 3H, the level the strategy is named for. Worth running against a hotel builder to see whether cornering the houses is really worth the rent it gives up."}
 };
 const HOUSE_LABELS = {1:"1 house",2:"2 houses",3:"3 houses",4:"4 houses",5:"Hotel"};
 
@@ -1236,11 +1237,20 @@ function isDeadCard(g,p,i){
    preferences — orange over green, a set-completer over a dead card — all
    survive intact. Only the inflation goes.
    ------------------------------------------------------------------ */
+/* The floor is a divide-by-nothing guard and nothing more, so it has to sit
+   below every scale a real doctrine produces. It used to be 0.3, which is
+   inside the legitimate range: a one-house builder prices the board at about
+   0.24 and a low-target Everything Buyer can reach 0.15, so the very
+   doctrines that build least were the ones left un-normalised — their values
+   divided by a constant instead of by their own yardstick, which is the whole
+   point of this function. Measured across every doctrine and every turn of a
+   200-game spread, the raw scale runs 0.15 to 4.16.                        */
+const SCALE_FLOOR = 0.02;
 function scaleFor(g,pl){
   if(pl._scaleAt === g.turn) return pl._scale;
   let s = 0;
   for(const i of OWNABLE) s += rawValue(g,pl,i)/BOARD[i].price;
-  pl._scale = Math.max(0.3, s/OWNABLE.length);
+  pl._scale = Math.max(SCALE_FLOOR, s/OWNABLE.length);
   pl._scaleAt = g.turn;
   return pl._scale;
 }
@@ -1251,6 +1261,23 @@ function scaleFor(g,pl){
 function nv(g,pl,i){
   const s = BOARD[i];
   let v = rawValue(g,pl,i)/scaleFor(g,pl);
+  /* The housing shortage doctrine is counting houses, not deeds. Only the 22
+     colour properties can carry any, and there are just 32 houses in the box,
+     so what it wants is the widest spread of buildable sets it can hold —
+     three houses on four colours puts 36 houses on the board and leaves the
+     rest of the table unable to build at all. It pays over the odds for a
+     colour it can nearly complete, and takes railroads and utilities on the
+     same terms as anyone else: they carry no houses, but their rent is real
+     money and a doctrine that turns its nose up at them just ends up poorer
+     (measured at about 5 points of win rate).                             */
+  if(pl.cfg.acquire === "shortage"){
+    if(isDeadCard(g,pl,i)) return Math.max(v*0.50, s.price*0.55);
+    if(s.type !== "prop") return Math.max(v, s.price*0.98);
+    const grp = s.g;
+    // one more colour it can put houses on is the entire strategy
+    if(ownedIn(g,pl,grp) >= GROUPS[grp].members.length - 1) v *= 1.45;
+    return Math.max(v, s.price*1.05);
+  }
   if(pl.cfg.acquire === "monopoly"){
     if(isDeadCard(g,pl,i)){
       // a card that can never become a set: worth only its nuisance value
@@ -1345,6 +1372,11 @@ function buildPhase(g,p){
 
   let guard = 0, built = 0;
   const tally = {};   // building is a cash movement too, so it gets logged
+  /* A house on the board is worth more to the shortage doctrine than the rent
+     it earns, because it is also a house nobody else can buy. That is worth
+     running a leaner till for — the cushion every other doctrine keeps is
+     what stopped this one getting its houses down in the first place. */
+  const buildFloor = p.cfg.acquire === "shortage" ? reserveFor(g,p)*0.55 : reserveFor(g,p);
   mark(g);
   while(guard++ < 80){
     let did = false;
@@ -1355,7 +1387,7 @@ function buildPhase(g,p){
       const minL = Math.min(...lvls);
       if(minL >= target) continue;
       const i = members[lvls.indexOf(minL)];
-      if(p.cash - cost < reserveFor(g,p)) continue;
+      if(p.cash - cost < buildFloor) continue;
       if(minL < 4){
         if(g.houses <= 0) continue;                  // housing shortage
         g.houses--; g.level[i]++;
@@ -1366,6 +1398,10 @@ function buildPhase(g,p){
         tally[k].h++; tally[k].spent += cost;
       } else {
         if(target < 5 || g.hotels <= 0) continue;
+        /* Trading four houses up to a hotel puts those four back in the bank
+           for everyone else to buy. The shortage doctrine will not do that
+           while houses are scarce enough for the squeeze to be working. */
+        if(p.cfg.acquire === "shortage" && g.houses < 12) continue;
         g.hotels--; g.houses += 4; g.level[i] = 5;
         p.cash -= cost;
         p.ledger[k].out += cost; p.ledger[k].buildOut += cost;
@@ -2077,7 +2113,11 @@ function* takeTurn(g){
       } else if(p.jailTurns >= 3){
         charge(g,p,50,null); const bj3 = chargeSnap(g); p.jail = false;
         ev(g,"jail","P"+p.id+" serves the third turn and pays <b class=\"amt\">$50</b>.",p,false,bj3);
-        if(!g.over){
+        /* That $50 can be the charge that finishes a player off. With three
+           still at the table the game is not over, so `g.over` alone let a
+           bankrupt player walk out of Jail, cross the board and collect on a
+           card — which is how an eliminated player ended a game holding cash. */
+        if(!g.over && !p.bankrupt){
           advance(g,p,d1+d2);
           yield {k:"move",p};
           yield* landOn(g,p,d1+d2);
@@ -3361,6 +3401,29 @@ test("a colour is built up evenly", () => {
   ok(Math.max(...lv) - Math.min(...lv) <= 1, "levels differ by more than one: " + lv.join(","));
 });
 
+/* A razed hotel leaves its colour lopsided (4,0). The only sane recovery is
+   to rebuild from the bottom, which walks through 4,1 / 4,2 / 4,3 — states no
+   shape-based check can distinguish from a broken builder, so the order is
+   pinned here instead. */
+test("a colour lopsided by a razed hotel is rebuilt from the bottom", () => {
+  const g = mk([D({houseTarget:4}), D()]);
+  const p = g.players[0];
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.level[1] = 4; g.level[3] = 0;                  // Baltic's hotel was sold back whole
+  g.houses -= 4;
+  p.cash = 5000;
+
+  /* One pass at a time, so the climb itself is visible rather than just the
+     destination. */
+  const seen = [];
+  for(let pass=0; pass<4; pass++){
+    g.houses = 1;                                  // one house available per pass
+    buildPhase(g, p);
+    seen.push(g.level[1] + "," + g.level[3]);
+  }
+  deepEq(seen, ["4,1","4,2","4,3","4,4"], "the rebuild did not start from the lower deed");
+});
+
 test("a player never builds past what they can afford", () => {
   const g = mk([D({houseTarget:5}), D()]);
   g.owner[1] = 0; g.owner[3] = 0;
@@ -3682,6 +3745,85 @@ test("the caption element really is given text, not markup", () => {
 });
 
 /* ==================================================================
+   6b. Valuation yardstick and the Housing Shortage doctrine
+   ================================================================== */
+suite("Valuation and Housing Shortage");
+
+/* scaleFor rescales a doctrine's raw values so an average deed is worth about
+   its printed price to everyone. Its floor is a divide-by-nothing guard; if
+   the floor ever binds, that doctrine is being normalised against a constant
+   instead of its own yardstick, which defeats the whole function. It used to
+   sit at 0.3 and caught every low-house doctrine. */
+test("the valuation yardstick is never replaced by its own floor", () => {
+  for(let t=1; t<=5; t++)
+    for(const acq of Object.keys(ACQUIRE_STRATS)){
+      const g = mk([{priority:[], houseTarget:t, acquire:acq, trade:"fair"}, D()]);
+      const p = g.players[0];
+      let s = 0;
+      for(const i of OWNABLE) s += rawValue(g,p,i)/BOARD[i].price;
+      const raw = s/OWNABLE.length;
+      ok(raw > SCALE_FLOOR,
+         `${t}H/${acq}: raw scale ${raw.toFixed(4)} is at or below the floor ${SCALE_FLOOR}`);
+      near(scaleFor(g,p), raw, 1e-9,
+         `${t}H/${acq}: scaleFor handed back the floor instead of the real scale`);
+    }
+});
+
+/* It leans toward colours it can build on, but does not refuse the deeds that
+   carry no houses — a version that shunned railroads measured about 5 points
+   of win rate worse, because their rent is real money. */
+test("Housing Shortage pays up for buildable colours without shunning the rest", () => {
+  const g = mk([{priority:[], houseTarget:3, acquire:"shortage", trade:"fair"},
+                {priority:[], houseTarget:3, acquire:"monopoly", trade:"fair"}]);
+  const short = g.players[0], hunter = g.players[1];
+
+  const deed = IDX["Oriental Ave"];
+  ok(nv(g,short,deed) > BOARD[deed].price, "will not pay over the odds for a buildable colour");
+  ok(nv(g,short,deed) > nv(g,hunter,deed), "rates a buildable colour no higher than a Hunter does");
+  eq(wantsToBuy(g,short,deed), true, "passed on a buildable colour");
+
+  for(const n of ["Reading RR","Electric Company"]){
+    const i = IDX[n];
+    eq(wantsToBuy(g,short,i), true, `refused ${n}; its rent is still worth having`);
+    near(nv(g,short,i), nv(g,hunter,i), 0.01, `${n} should be valued as any Hunter would`);
+  }
+});
+
+/* Completing another buildable colour is the whole plan, so a deed that would
+   finish one is worth more to this doctrine than to a Monopoly Hunter. */
+test("Housing Shortage pays a premium for the deed that completes a colour", () => {
+  const g = mk([{priority:[], houseTarget:3, acquire:"shortage", trade:"fair"},
+                {priority:[], houseTarget:3, acquire:"monopoly", trade:"fair"}]);
+  const a = IDX["Oriental Ave"], b = IDX["Vermont Ave"], c = IDX["Connecticut Ave"];
+  for(const seat of [0,1]){ g.owner[a] = seat; g.owner[b] = seat; }
+  g.owner[a] = 0; g.owner[b] = 0;                  // shortage player holds two light blues
+  const short = g.players[0], hunter = g.players[1];
+  g.owner[a] = 1; g.owner[b] = 1;                  // and the Hunter the same, for comparison
+  const hunterVal = nv(g, hunter, c);
+  g.owner[a] = 0; g.owner[b] = 0;
+  ok(nv(g, short, c) > hunterVal,
+     `set-completer valued at ${nv(g,short,c).toFixed(0)} vs the Hunter's ${hunterVal.toFixed(0)}`);
+});
+
+test("Housing Shortage will not hand four houses back for a hotel while they are scarce", () => {
+  const g = mk([{priority:[], houseTarget:5, acquire:"shortage", trade:"fair"}, D()]);
+  const p = g.players[0];
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.level[1] = 4; g.level[3] = 4;
+  g.houses -= 8;
+  p.cash = 5000;
+
+  g.houses = 5;                                    // the squeeze is on
+  buildPhase(g, p);
+  deepEq([g.level[1], g.level[3]], [4,4], "converted anyway, refilling the bank");
+  eq(g.houses, 5, "houses moved despite no build being allowed");
+
+  g.houses = 20;                                   // plenty to go round again
+  buildPhase(g, p);
+  ok(g.level[1] === 5 && g.level[3] === 5, "never converted even with houses to spare");
+});
+
+/* ==================================================================
    7b. The completion premium
 
    What a holder charges for the deed that completes someone's colour.
@@ -3911,29 +4053,19 @@ const STATE_RULES = {
   "nothing is built on a mortgaged deed": g => {
     for(const i of OWNABLE) if(g.level[i] > 0 && g.mortgaged[i]) return BOARD[i].n;
   },
-  /* Houses go up and come down evenly. The one legal exception: when the bank
-     has fewer than four houses left, a hotel cannot be broken into houses and
-     must be sold back whole, which drops that deed straight to zero while its
-     neighbours keep what they had. Since a colour is even until that happens,
-     the neighbours are on 4 or 5 when it does — so a gap down to zero is only
-     legal in a colour still topped by a hotel or a full four houses, and the
-     deeds that do still carry buildings must remain within one level of each
-     other. Anything else is a genuine even-build break.
+  /* Even building is NOT checked here, deliberately. When the bank is short
+     of houses a hotel cannot be broken into four and is sold back whole,
+     dropping that deed to zero beside neighbours still on four or five — and
+     the rebuild afterwards climbs from the bottom, passing through 4,1 then
+     4,2 then 4,3. Every one of those is a legal consequence of a legal sale,
+     and no test on the SHAPE of a colour can tell them from a genuine
+     even-build break: "4,1 while rebuilding" and "4,1 because the builder
+     picked the wrong deed" are the same board.
 
-     Shape alone cannot separate "built 5,5,5 then razed two" from "built only
-     the first deed", so the build ORDER is pinned by the unit tests in the
-     Building suite rather than here. */
-  "a colour is built and sold down evenly": g => {
-    for(const k of GROUP_KEYS){
-      const lv = GROUPS[k].members.map(i=>g.level[i]);
-      if(Math.max(...lv) - Math.min(...lv) <= 1) continue;
-      const standing = lv.filter(v => v > 0);
-      const evenWhereBuilt = Math.max(...standing) - Math.min(...standing) <= 1;
-      const razedFromTheTop = Math.max(...lv) >= 4;
-      if(evenWhereBuilt && razedFromTheTop) continue;    // a hotel sold back whole
-      return GROUPS[k].name + " at " + lv.join(",");
-    }
-  },
+     So the rule is pinned where it is actually decidable — on the order
+     buildPhase and raiseCash choose deeds in — by the unit tests in the
+     Building and Mortgaging suites. Between them they catch a max-first
+     builder and a min-first seller, which is what this rule was for. */
 };
 
 test("300 full games across every doctrine break no rule", () => {
