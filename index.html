@@ -1356,6 +1356,38 @@ function acquire(g,p,i,price,how){
 }
 
 /* ---------- development ---------- */
+
+/* Pawn spare deeds to put a house down.
+
+   raiseCash cannot be reused for this: its later steps sell buildings, which
+   would be selling houses to buy houses, and mortgage deeds inside developed
+   colours, which freezes further building on them. So this does only the one
+   safe thing — mortgage a deed the player is not building on and never will.
+   A railroad or utility is fair game: a mortgaged one still counts toward how
+   many the owner holds, so pawning it costs only the rent on that one square.
+   Returns what it raised, and appends what it pawned to `pawned`.          */
+function mortgageSpareForBuilding(g,p,need,pawned){
+  let raised = 0, guard = 0;
+  while(p.cash < need && guard++ < 30){
+    let pick = -1, low = Infinity;
+    for(const i of myProps(g,p)){
+      if(g.mortgaged[i] || g.level[i] > 0) continue;
+      const grp = BOARD[i].g;
+      if(GROUPS[grp].house > 0 && hasMonopoly(g,p,grp)) continue;  // it builds here
+      if(isTargetColour(p,i)) continue;                            // doctrine's own colour
+      const v = nv(g,p,i);
+      if(v < low){ low = v; pick = i; }
+    }
+    if(pick < 0) break;
+    g.mortgaged[pick] = true;
+    p.cash += BOARD[pick].mortgage;
+    p.ledger[BOARD[pick].g].sales += BOARD[pick].mortgage;
+    raised += BOARD[pick].mortgage;
+    if(pawned) pawned.push(BOARD[pick].n);
+  }
+  return raised;
+}
+
 function buildPhase(g,p){
   const target = clamp(p.cfg.houseTarget,1,5);
   const sets = GROUP_KEYS.filter(k=>
@@ -1372,6 +1404,8 @@ function buildPhase(g,p){
 
   let guard = 0, built = 0;
   const tally = {};   // building is a cash movement too, so it gets logged
+  const pawned = [];  // deeds put under the mortgage to fund the building
+  const opening = cashNow(g);
   /* A house on the board is worth more to the shortage doctrine than the rent
      it earns, because it is also a house nobody else can buy. That is worth
      running a leaner till for — the cushion every other doctrine keeps is
@@ -1387,6 +1421,17 @@ function buildPhase(g,p){
       const minL = Math.min(...lvls);
       if(minL >= target) continue;
       const i = members[lvls.indexOf(minL)];
+      /* Rather than skip a house for want of ready money, pawn a spare deed.
+         Every doctrine does this, not just the shortage one: mortgaging to
+         build is ordinary Monopoly, and a player who sits on idle deeds while
+         its own sets go undeveloped is simply playing badly. It is worth
+         about 25 points of win rate against an otherwise identical player —
+         which is exactly why it cannot belong to one doctrine alone. Gated to
+         the shortage doctrine it made that strategy look like a 69% winner
+         when all it had was exclusive access to its own capital.
+         Only attempted when there is a house on the shelf to buy. */
+      if(minL < 4 && g.houses > 0 && p.cash - cost < buildFloor)
+        mortgageSpareForBuilding(g, p, cost + buildFloor, pawned);
       if(p.cash - cost < buildFloor) continue;
       if(minL < 4){
         if(g.houses <= 0) continue;                  // housing shortage
@@ -1411,6 +1456,16 @@ function buildPhase(g,p){
       }
     }
     if(!did) break;
+  }
+  /* Logged before the build line it paid for, and against its own opening
+     snapshot so it does not consume the stamp that line reports from. */
+  if(pawned.length){
+    const seen = [], counts = {};
+    for(const a of pawned){ if(!(a in counts)){ counts[a] = 0; seen.push(a); } counts[a]++; }
+    ev(g,"raise",
+      `<b class="rt warn">Mortgages to build</b> P${p.id} puts `+
+      `${seen.map(a => counts[a] > 1 ? a + " (×" + counts[a] + ")" : a).join(", ")}`+
+      ` under the mortgage to keep buying houses.`, p, false, opening);
   }
   if(built){
     let spent = 0;
@@ -3422,6 +3477,74 @@ test("a colour lopsided by a razed hotel is rebuilt from the bottom", () => {
     seen.push(g.level[1] + "," + g.level[3]);
   }
   deepEq(seen, ["4,1","4,2","4,3","4,4"], "the rebuild did not start from the lower deed");
+});
+
+/* Mortgaging to build is ordinary Monopoly and belongs to every doctrine.
+   Skipping it was worth about 25 points of win rate, so it must not become
+   one doctrine's private advantage — see the comment in buildPhase. */
+test("a player pawns a spare deed rather than skip a house", () => {
+  for(const acq of Object.keys(ACQUIRE_STRATS)){
+    const g = mk([{priority:[], houseTarget:3, acquire:acq, trade:"fair"}, D()]);
+    const p = g.players[0];
+    const spare = IDX["Boardwalk"];
+    g.owner[1] = 0; g.owner[3] = 0;                // a brown set to build on
+    g.owner[spare] = 0;                            // and one idle deed to pawn
+    p.cash = 100;                                  // short of a $50 house plus the cushion
+    ok(p.cash - GROUPS.brown.house < reserveFor(g,p)*0.55,
+       `${acq}: fixture must not be able to afford a house outright`);
+
+    buildPhase(g, p);
+    eq(g.mortgaged[spare], true, `${acq}: left the spare deed idle and skipped building`);
+    ok(g.level[1] + g.level[3] > 0, `${acq}: pawned the deed and still did not build`);
+    // and it must not pawn out of the colour it is building on, which would freeze it
+    eq(g.mortgaged[1], false, `${acq}: mortgaged a deed in the set it was building`);
+    eq(g.mortgaged[3], false, `${acq}: mortgaged a deed in the set it was building`);
+  }
+});
+
+test("no deed is pawned when the bank has no house to sell", () => {
+  const g = mk([D({houseTarget:3}), D()]);
+  const p = g.players[0];
+  const spare = IDX["Boardwalk"];
+  g.owner[1] = 0; g.owner[3] = 0; g.owner[spare] = 0;
+  p.cash = 100;
+  g.houses = 0;                                    // nothing on the shelf to buy
+  buildPhase(g, p);
+  eq(g.mortgaged[spare], false, "pawned a deed for a house that was not available");
+});
+
+/* The cheapest thing to pawn is often a deed in the doctrine's own colour.
+   Mortgaging it would freeze that colour the moment the set completes, so it
+   is off limits even though it is the obvious pick on value alone. */
+test("a target colour is not pawned to fund building elsewhere", () => {
+  const g = mk([{priority:["brown"], houseTarget:3, acquire:"monopoly", trade:"fair"}, D()]);
+  const p = g.players[0];
+  for(const i of GROUPS.lightblue.members) g.owner[i] = 0;   // the set being built
+  const target = 1, spare = IDX["Boardwalk"];
+  g.owner[target] = 0;                             // Mediterranean Ave — target colour, cheapest deed there is
+  g.owner[spare] = 0;                              // Boardwalk — dearest, and not a target
+  p.cash = 100;
+
+  ok(nv(g,p,target) < nv(g,p,spare),
+     "fixture: the target deed must be the one plain value would pawn first");
+  buildPhase(g, p);
+  eq(g.mortgaged[target], false, "pawned the colour the doctrine is built around");
+  eq(g.mortgaged[spare], true, "should have pawned the non-target deed instead");
+});
+
+test("pawning to build never sells a house to buy a house", () => {
+  const g = mk([D({houseTarget:5}), D()]);
+  const p = g.players[0];
+  for(const i of GROUPS.lightblue.members) g.owner[i] = 0;
+  g.level[6] = 2; g.level[8] = 2; g.level[9] = 2;
+  g.houses -= 6;
+  const before = GROUPS.lightblue.members.map(i=>g.level[i]);
+  p.cash = 10;                                     // nothing to build with, nothing to pawn
+  const housesBefore = g.houses;
+  buildPhase(g, p);
+  const after = GROUPS.lightblue.members.map(i=>g.level[i]);
+  for(let j=0;j<3;j++) ok(after[j] >= before[j], "a standing house was sold off to fund building");
+  ok(g.houses <= housesBefore, "houses went back to the bank during a build phase");
 });
 
 test("a player never builds past what they can afford", () => {
