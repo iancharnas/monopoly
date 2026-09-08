@@ -1104,6 +1104,58 @@ const FREQ = [3.10,2.14,1.89,2.18,2.32,2.94,2.34,0.87,2.36,2.33,
 
 const HORIZON = 45;   // opponent turns of rent a purchase is priced against
 
+/* Rent a completed colour collects from a single opponent turn, indexed by
+   the house level its owner intends to build to. This is what handing a set
+   over actually costs you — as opposed to what the deeds happened to cost,
+   which is a different number entirely.                                  */
+const GROUP_DAMAGE = (() => {
+  const out = {};
+  for(const k of GROUP_KEYS){
+    out[k] = [0,0,0,0,0,0];
+    for(let lv=1; lv<=5; lv++)
+      out[k][lv] = GROUPS[k].members.reduce((s,i) => {
+        const b = BOARD[i];
+        const rent = b.type === "prop" ? b.rent[lv]
+                   : b.type === "rail" ? 200          // all four railroads held
+                   : 70;                              // both utilities, average roll
+        return s + FREQ[i]/100 * rent;
+      }, 0);
+  }
+  return out;
+})();
+/* The sharpest danger-per-dollar anywhere on the board at each build level.
+   The premium below is expressed as a share of this, which is what keeps it
+   from ever exceeding the flat multiple it replaces.                      */
+const PEAK_DANGER = (() => {
+  const out = [0,0,0,0,0,0];
+  for(let lv=1; lv<=5; lv++)
+    out[lv] = Math.max(...OWNABLE.map(i => GROUP_DAMAGE[BOARD[i].g][lv]/BOARD[i].price));
+  return out;
+})();
+
+/* What a holder charges over the odds for the one deed that completes some-
+   one else's colour.
+
+   This used to be a flat multiple of the holder's own valuation — and that
+   valuation is a fraction of the printed price, so the levy tracked what the
+   deed COST rather than the rent the finished set would collect. Those two
+   come apart badly. Boardwalk is the dearest deed on the board and Dark Blue
+   among the least visited, so completing it drew the stiffest levy on the
+   board for doing some of the mildest damage, and a Dark Blue doctrine could
+   never buy the one deed it was built around.
+
+   So price the levy off the damage: the rent that set will actually collect
+   per dollar the deed costs, as a share of the keenest such ratio going.
+   Capped at that share so no deed is ever dearer than it was before, and
+   read off the BUYER's house target, because a set is exactly as dangerous
+   as what its new owner means to build on it.                            */
+function completionPremium(holder, buyer, i){
+  const full = holder.cfg.trade === "fair" ? 2.2 : 1.8;
+  const lv = clamp(buyer.cfg.houseTarget, 1, 5);
+  const danger = GROUP_DAMAGE[BOARD[i].g][lv] / BOARD[i].price;
+  return 1 + (full - 1) * clamp(danger/PEAK_DANGER[lv], 0, 1);
+}
+
 function reserveFor(g,p){
   let r = 110;
   if(p.cfg.trade==="hoarder") r += 320;
@@ -1233,6 +1285,22 @@ function completesFor(g,pl,i){
    deal table would happily trade it away — which is exactly the deed the
    player is supposed to be building around. This is a hard rule instead. */
 function isTargetColour(pl,i){ return pl.cfg.priority.includes(BOARD[i].g); }
+
+/* Which colours a whole package of deeds would complete for the player
+   receiving it. Checking a package one deed at a time is not enough: hand
+   over two of a colour the recipient already holds one of and they walk away
+   with the set, while neither deed on its own completes anything.        */
+function completesForWith(g,pl,pack){
+  if(!pack || !pack.length) return [];
+  const add = {};
+  for(const i of pack){
+    if(g.owner[i] === pl.idx) continue;
+    const grp = BOARD[i].g;
+    add[grp] = (add[grp] || 0) + 1;
+  }
+  return Object.keys(add).filter(grp =>
+    ownedIn(g,pl,grp) + add[grp] === GROUPS[grp].members.length);
+}
 function groupClear(g,i){    // no buildings anywhere in the colour
   const grp = BOARD[i].g;
   return !GROUPS[grp].members.some(m=>g.level[m]>0);
@@ -1524,6 +1592,8 @@ function bestOfferAgainst(g,p,opp){
   // players spend the whole game shuttling the same cards back and forth
   const COOL = 10;
   const settled = i => groupClear(g,i) && (g.turn - g.moved[i]) > COOL;
+  // most deeds one offer will ever bundle together
+  const MAX_GIVE = 3;
   const oppHas = myProps(g,opp).filter(settled);
   if(!oppHas.length) return null;
   const mineHas = myProps(g,p).filter(settled);
@@ -1534,6 +1604,20 @@ function bestOfferAgainst(g,p,opp){
   const oppBudget = Math.max(0, opp.cash - reserveFor(g,opp)*0.9);
   let best = null;
 
+  /* Deeds this player could legally part with, on the grounds that hold
+     however many end up in the package. Priced once here rather than inside
+     the two loops below, which used to re-value the same deed for every
+     deed being chased. */
+  const stock = [];
+  for(const X of mineHas){
+    if(hasMonopoly(g,p,BOARD[X].g)) continue;             // never break my own set
+    if(isTargetColour(p,X)) continue;                     // target colours never leave
+    // completing ANY rival's colour is the expensive move, not just this one's
+    const xCompletes = rivals(g,p).some(q => completesFor(g,q,X));
+    if(xCompletes && (ts === "fair" || ts === "blocker")) continue;   // hard refusal
+    stock.push({X, xCompletes, mine: nv(g,p,X), theirs: nv(g,opp,X)});
+  }
+
   for(const W of oppHas){
     /* A colour the holder is themselves built around is nailed down — asking
        burns this turn's one offer on a certain refusal. */
@@ -1542,33 +1626,53 @@ function bestOfferAgainst(g,p,opp){
     const oppLose = nv(g,opp,W);
     const target = isTargetColour(p,W);   // a deed in a colour this doctrine is built on
     if(!target && wantVal < BOARD[W].price*0.7) continue;
+    const iComplete = completesFor(g,p,W);
 
-    const gives = [null, ...mineHas];
-    for(const X of gives){
-      if(X !== null){
-        const xg = BOARD[X].g;
-        if(hasMonopoly(g,p,xg)) continue;                 // never break my own set
-        // completing ANY rival's colour is the expensive move, not just this one's
-        const xCompletesFor = rivals(g,p).filter(q => completesFor(g,q,X));
-        const xCompletes = xCompletesFor.length > 0;
-        const iComplete = completesFor(g,p,W);
-        if(xCompletes){
-          if(ts === "fair" || ts === "blocker") continue;  // hard refusal
-          if(ts === "winwin" && !iComplete) continue;      // only as a mutual deal
-        }
-        if(isTargetColour(p,X)) continue;                 // target colours never leave
-      }
-      let giveVal = X === null ? 0 : nv(g,p,X);
-      const oppGain = X === null ? 0 : nv(g,opp,X);
+    // what I am willing to put on the table while chasing this particular deed
+    const cands = [];
+    for(const s of stock){
+      if(s.xCompletes && ts === "winwin" && !iComplete) continue;   // only as a mutual deal
       // if I would be completing anyone's colour, charge myself for it
-      if(X !== null && rivals(g,p).some(q => completesFor(g,q,X)) && !completesFor(g,p,W))
-        giveVal *= 1.8;
+      cands.push({X:s.X, theirs:s.theirs,
+                  mine: s.mine * (s.xCompletes && !iComplete ? 1.8 : 1)});
+    }
+
+    /* The packages worth pricing: cash alone, then each deed on its own, then
+       combinations. A single deed plus cash is all this used to be able to
+       express, which left an expensive deed unbuyable whenever the asking
+       price beat both the cash on hand and anything one spare deed was worth
+       — routinely true of Dark Blue. Rather than enumerate every subset, take
+       two greedy orderings: the deeds that give the opponent the most value
+       per dollar of value I lose, and the deeds that simply close the gap
+       fastest. Either can be the ordering that gets a deal over the line. */
+    const packs = [[]];
+    for(const c of cands) packs.push([c]);
+    if(cands.length > 1){
+      const byRatio = cands.slice().sort((a,b) =>
+        (b.theirs/Math.max(1,b.mine)) - (a.theirs/Math.max(1,a.mine)));
+      const byValue = cands.slice().sort((a,b) => b.theirs - a.theirs);
+      for(const order of [byRatio, byValue])
+        for(let k=2; k<=Math.min(MAX_GIVE, order.length); k++) packs.push(order.slice(0,k));
+    }
+
+    for(const pack of packs){
+      const Xs = pack.map(c => c.X);
+      let giveVal = 0, oppGain = 0;
+      for(const c of pack){ giveVal += c.mine; oppGain += c.theirs; }
+
+      /* Whether the package hands the opponent a set has to be judged on the
+         package, not deed by deed — see completesForWith. It decides both
+         whether the doctrine will send this at all and, below, whether the
+         opponent is getting enough out of it to drop their completion levy. */
+      const mutual = completesForWith(g,opp,Xs).length > 0;
+      if(mutual){
+        if(ts === "fair" || ts === "blocker") continue;
+        if(ts === "winwin" && !iComplete) continue;
+      }
 
       // minimum cash I must add for this opponent to say yes
-      const mutual = X !== null && completesFor(g,opp,X);
-      const iComplete = completesFor(g,p,W);
       let oppLoseAdj = oppLose;
-      if(iComplete && !mutual) oppLoseAdj *= (opp.cfg.trade === "fair" ? 2.2 : 1.8);
+      if(iComplete && !mutual) oppLoseAdj *= completionPremium(opp, p, W);
       let C = Math.ceil((oppLoseAdj*need - oppGain)/10)*10;
       if(ts === "hoarder" && C > 0) continue;              // never pays cash
       if(C > 0){
@@ -1583,7 +1687,10 @@ function bestOfferAgainst(g,p,opp){
         C = Math.max(C, -oppBudget);
       }
       /* The deal has to actually be worth the paperwork — except in a target
-         colour, where a wafer-thin margin still beats not owning the deed. */
+         colour, where a wafer-thin margin still beats not owning the deed.
+         This is also what stops a package growing past the point of sense:
+         every deed added costs its own value, so an over-stuffed offer fails
+         the margin before it ever reaches the table. */
       const myNet = wantVal*prem - giveVal - C;
       if(myNet <= wantVal*(target ? 0.02 : 0.12)) continue;
       // hoarder wants to actually extract money
@@ -1591,18 +1698,20 @@ function bestOfferAgainst(g,p,opp){
       // and when several deals are on the table, the target colour goes first
       if(target) score *= 2.2;
       if(!best || score > best.score){
-        best = {score, from:p.id, to:opp.id, get:[W], give:X===null?[]:[X], cash:C,
-                note:noteFor(g,p,opp,W,X,C)};
+        best = {score, from:p.id, to:opp.id, get:[W], give:Xs.slice(), cash:C,
+                note:noteFor(g,p,opp,W,Xs,C)};
       }
     }
   }
   return best;
 }
 
-function noteFor(g,p,opp,W,X,C){
+function noteFor(g,p,opp,W,Xs,C){
   const bits = [];
   if(completesFor(g,p,W)) bits.push("completes " + GROUPS[BOARD[W].g].name + " for P" + p.id);
-  if(X !== null && completesFor(g,opp,X)) bits.push("completes " + GROUPS[BOARD[X].g].name + " for P" + opp.id);
+  for(const grp of completesForWith(g,opp,Xs))
+    bits.push("completes " + GROUPS[grp].name + " for P" + opp.id);
+  if(Xs.length > 1) bits.push("P" + p.id + " bundles " + Xs.length + " deeds to make the price");
   if(C > 0) bits.push("P" + p.id + " sweetens with cash");
   if(C < 0) bits.push("P" + p.id + " demands cash");
   if(!bits.length) bits.push(TRADE_STRATS[p.cfg.trade].name + " angling for position");
@@ -1621,12 +1730,17 @@ function evaluateOffer(g,offer){
   gain += offer.cash;
   // handing over a card that completes the other player's colour is the
   // single most expensive thing you can do, so every doctrine prices it up
-  const mutual = offer.give.some(j=>completesFor(g,opp,j));
+  /* Judged on the whole package, matching how the offer was priced — two
+     deeds of a colour this player already holds one of is a set arriving,
+     even though neither deed completes anything on its own. The proposer and
+     the holder have to read that the same way or offers get built against a
+     discount the holder never gives. */
+  const mutual = completesForWith(g,opp,offer.give).length > 0;
   for(const i of offer.get){
     if(!completesFor(g,p,i)) continue;
     if(opp.cfg.trade === "blocker") return false;
     if(opp.cfg.trade === "winwin" && !mutual) return false;
-    if(!mutual) lose *= (opp.cfg.trade === "fair" ? 2.2 : 1.8);
+    if(!mutual) lose *= completionPremium(opp, p, i);
     break;
   }
   if(opp.cfg.trade === "hoarder" && offer.cash < 0) return false;   // won't pay out
@@ -2709,7 +2823,25 @@ function setProgress(f, show){
   p.classList.toggle("on", !!show);
   p.firstElementChild.style.width = (f*100).toFixed(1) + "%";
 }
-function setStatus(t){ $("#status").textContent = t; }
+/* Log messages carry their own markup — the event badge, monospaced amounts,
+   deed names in their colour — because the log stylesheet is what renders it.
+   The caption under the board styles none of that and reads as plain prose,
+   so the markup has to come off rather than be printed at the reader.
+   Parsing it and reading the text back also turns &mdash; and friends into
+   real characters, which a tag-stripping regex would leave sitting there.
+   The parse happens inside a <template>, whose content is inert: no image
+   or font is fetched and no script runs, whatever the string contains.   */
+const asPlainText = (() => {
+  const tpl = document.createElement("template");
+  return html => {
+    if(html == null) return "";
+    const s = String(html);
+    if(s.indexOf("<") < 0 && s.indexOf("&") < 0) return s;   // already prose
+    tpl.innerHTML = s;
+    return tpl.content.textContent;
+  };
+})();
+function setStatus(t){ $("#status").textContent = asPlainText(t); }
 function setPill(t){ $("#turnpill").textContent = t; }
 
 async function runVisual(cfg, agg){
@@ -3268,6 +3400,25 @@ test("cash is raised by mortgaging before any building is sold", () => {
   deepEq([g.level[1], g.level[3]], [2,2], "the houses stayed up");
 });
 
+/* The one place the even-sell rule legally gives way. With no houses left in
+   the bank a hotel cannot be broken into four, so it is sold back whole and
+   that deed drops to zero in one step while its neighbour keeps its houses.
+   Pinned here so the shape is a decision rather than an accident — the
+   full-game sweep allows exactly this and nothing wider. */
+test("a hotel is sold back whole when the bank has no houses to break it into", () => {
+  const g = mk([D(), D()]);
+  const p = g.players[0];
+  g.owner[1] = 0; g.owner[3] = 0;
+  g.level[1] = 4; g.level[3] = 5;                  // four houses beside a hotel
+  g.houses = 0; g.hotels -= 1;
+  p.cash = 0;
+  raiseCash(g, p, 100);
+  deepEq([g.level[1], g.level[3]], [4,0], "the hotel should have gone in one step");
+  eq(g.hotels, 12, "the hotel token came back");
+  eq(g.houses, 0, "a razed hotel yields no houses");
+  eq(p.cash, GROUPS.brown.house*5/2, "refunded at half of all five buildings");
+});
+
 test("selling a building refunds half and returns the token to the bank", () => {
   const g = mk([D(), D()]);
   const p = g.players[0];
@@ -3396,6 +3547,78 @@ test("a prioritising player goes after the colour it is missing", () => {
    fixture below is chosen so plain valuation and the target-colour weighting
    disagree — otherwise the test would pass whether the weighting exists or
    not, and would be guarding nothing. */
+/* ---- multi-deed packages -------------------------------------------
+   The asking price for a deed that completes someone's colour runs to
+   about 1.4x its printed price. On the dearest colours that beats both
+   the cash a player can safely spare and anything one spare deed is
+   worth, so a one-for-one deal table could never buy it at all.
+   -------------------------------------------------------------------- */
+test("a cash-poor player bundles deeds to meet a price one deed cannot", () => {
+  const g = mk([D({trade:"fair"}), D({priority:["darkblue"], trade:"fair"})]);
+  settleTrades(g);
+  const park = IDX["Park Place"];
+  g.owner[IDX["Boardwalk"]] = 1;
+  g.owner[park] = 0;
+  for(const d of ["Reading RR","Vermont Ave","States Ave","Baltic Ave"]) g.owner[IDX[d]] = 1;
+  const p = g.players[1], opp = g.players[0];
+  p.cash = 120;
+
+  /* Check the fixture really is out of reach any other way, or the test
+     would pass without the packaging it exists to cover. */
+  const ask = nv(g,opp,park) * 2.2 * acceptRatio(opp);
+  ok(ask > p.cash, "fixture: the ask must exceed the cash on hand");
+  const spares = myProps(g,p).filter(i => i !== IDX["Boardwalk"]).map(i => nv(g,opp,i));
+  ok(Math.max(...spares) + p.cash < ask, "fixture: no single deed plus cash can reach the ask");
+
+  const offer = bestOfferAgainst(g, p, opp);
+  ok(offer, "made no offer at all");
+  deepEq(offer.get, [park], "chased the wrong deed");
+  ok(offer.give.length >= 2, "still only offering one deed: " + offer.give.length);
+  ok(evaluateOffer(g, offer), "built an offer its own model says would be refused");
+});
+
+test("a package that hands over a set is refused as firmly as a single deed", () => {
+  const g = mk([D({trade:"fair"}), D({trade:"fair"})]);
+  settleTrades(g);
+  const a = IDX["Oriental Ave"], b = IDX["Vermont Ave"], c = IDX["Connecticut Ave"];
+  g.owner[a] = 0; g.owner[b] = 0;                 // P1 holds two light blues
+  g.owner[c] = 1;                                 // P2 holds the third
+  g.owner[IDX["Boardwalk"]] = 1;
+  g.players[0].cash = 2000;
+
+  // the trap: neither deed completes anything on its own
+  eq(completesFor(g, g.players[1], a), false, "fixture: deed a must not complete alone");
+  eq(completesFor(g, g.players[1], b), false, "fixture: deed b must not complete alone");
+  deepEq(completesForWith(g, g.players[1], [a,b]), ["lightblue"], "fixture: the pair must complete");
+
+  const offer = bestOfferAgainst(g, g.players[0], g.players[1]);
+  if(offer) ok(!(offer.give.includes(a) && offer.give.includes(b)),
+               "a Fair Value player bundled a complete colour to the opponent");
+});
+
+/* The proposer prices an offer against what it predicts the holder will do.
+   If the two disagree about whether a bundle hands the holder a set, the
+   proposer quietly builds every mutual deal against a discount the holder
+   never gives, and both players waste their turns on certain refusals. */
+test("proposer and holder read a bundled set the same way", () => {
+  const g = mk([D({trade:"aggressive"}), D({trade:"fair"})]);
+  settleTrades(g);
+  // P1 needs New York Ave to finish orange; P2 needs two light blues for theirs
+  g.owner[IDX["St. James Pl"]] = 0; g.owner[IDX["Tennessee Ave"]] = 0;
+  g.owner[IDX["New York Ave"]] = 1;
+  g.owner[IDX["Oriental Ave"]] = 0; g.owner[IDX["Vermont Ave"]] = 0;
+  g.owner[IDX["Connecticut Ave"]] = 1;
+
+  const offer = bestOfferAgainst(g, g.players[0], g.players[1]);
+  ok(offer, "no two-for-two deal was found");
+  eq(offer.give.length, 2, "the deal under test is the bundled one");
+  deepEq(completesForWith(g, g.players[1], offer.give), ["lightblue"],
+         "fixture: the bundle must complete a colour for the holder");
+  eq(offer.give.some(j => completesFor(g, g.players[1], j)), false,
+     "fixture: no single deed in it may complete that colour, or nothing is being tested");
+  ok(evaluateOffer(g, offer), "the holder refused a deal the proposer priced as mutual");
+});
+
 test("a target colour is mortgaged only after everything else", () => {
   const g = mk([D({priority:["brown"]}), D()]);
   const p = g.players[0];
@@ -3409,6 +3632,155 @@ test("a target colour is mortgaged only after everything else", () => {
   raiseCash(g, p, 50);
   eq(g.mortgaged[spare], true, "the spare deed should have gone first");
   eq(g.mortgaged[target], false, "mortgaged the target colour while a spare was free");
+});
+
+/* ==================================================================
+   10. The board caption
+
+   The caption under the board is plain text, but it is handed the same
+   message the log renders as HTML. Anything that reaches it with markup
+   still attached shows the reader raw tags.
+   ================================================================== */
+suite("Board caption");
+
+test("markup and entities are resolved, not printed", () => {
+  eq(asPlainText(`<b class="rt">Rent</b> P2 pays <b class="amt">$50</b> to P1 &mdash; Boardwalk`),
+     "Rent P2 pays $50 to P1 — Boardwalk", "the reported caption");
+  eq(asPlainText("mortgages Baltic Ave (×2)"), "mortgages Baltic Ave (×2)", "plain prose is untouched");
+  eq(asPlainText("P1 buys B. &amp; O. RR for $200."), "P1 buys B. & O. RR for $200.", "escaped ampersand");
+  eq(asPlainText(""), "", "empty string");
+  eq(asPlainText(null), "", "nothing to say");
+});
+
+test("no message the engine can emit reaches the caption with markup on it", () => {
+  /* Play a wide spread of games and push every event the engine produces
+     through the caption, so a new message added later with a new tag in it
+     cannot slip past. */
+  const seen = new Set();
+  let checked = 0;
+  for(let seed = 1; seed <= 60; seed++){
+    const cfg = sweepConfig(seed);
+    const g = newGame(cfg, seed, seed % cfg.players.length);
+    for(const s of playGame(g)) void s;
+    for(const e of g.events){
+      const plain = asPlainText(e.msg);
+      checked++;
+      if(/[<>]/.test(plain) || /&[a-zA-Z]+;/.test(plain)) seen.add(e.type + ": " + plain.slice(0,90));
+    }
+  }
+  ok(checked > 5000, "not enough messages exercised (" + checked + ")");
+  ok(seen.size === 0, "markup survived into the caption — " + [...seen].slice(0,3).join(" | "));
+});
+
+test("the caption element really is given text, not markup", () => {
+  const host = $("#status");
+  const before = host.textContent;
+  setStatus(`<b class="rt">Rent</b> P2 pays <b class="amt">$50</b> to P1 &mdash; Boardwalk`);
+  eq(host.childElementCount, 0, "the caption grew child elements");
+  eq(host.textContent, "Rent P2 pays $50 to P1 — Boardwalk");
+  setStatus(before);
+});
+
+/* ==================================================================
+   7b. The completion premium
+
+   What a holder charges for the deed that completes someone's colour.
+   Pegged to the rent the finished set will collect rather than to what
+   the deeds cost — see completionPremium.
+   ================================================================== */
+suite("Completion premium");
+
+const FLAT = t => t === "fair" ? 2.2 : 1.8;      // the multiple it replaces
+
+test("it is a premium, and never dearer than the flat multiple it replaced", () => {
+  for(const trade of Object.keys(TRADE_STRATS))
+    for(let tgt=1; tgt<=5; tgt++){
+      const holder = {cfg:{trade}}, buyer = {cfg:{houseTarget:tgt}};
+      for(const i of OWNABLE){
+        const prem = completionPremium(holder, buyer, i);
+        ok(prem >= 1, `${BOARD[i].n} @${tgt} ${trade}: became a discount (${prem.toFixed(2)})`);
+        ok(prem <= FLAT(trade) + 1e-9,
+           `${BOARD[i].n} @${tgt} ${trade}: ${prem.toFixed(2)} exceeds the old ${FLAT(trade)}`);
+      }
+    }
+});
+
+test("the busiest colour still pays the full levy", () => {
+  const holder = {cfg:{trade:"fair"}}, buyer = {cfg:{houseTarget:3}};
+  const top = OWNABLE.reduce((a,i) =>
+    completionPremium(holder,buyer,i) > completionPremium(holder,buyer,a) ? i : a, OWNABLE[0]);
+  near(completionPremium(holder,buyer,top), 2.2, 0.001,
+       "nothing on the board is charged the full rate any more");
+});
+
+/* The wart this exists to fix: Boardwalk is the dearest deed on the board
+   and Dark Blue is among the least visited, so a levy pegged to price
+   charged the most for one of the mildest sets. */
+test("Dark Blue is no longer charged more than the colours that hurt more", () => {
+  const holder = {cfg:{trade:"fair"}}, buyer = {cfg:{houseTarget:3}};
+  const bw = IDX["Boardwalk"], ny = IDX["New York Ave"], il = IDX["Illinois Ave"];
+  ok(completionPremium(holder,buyer,bw) < completionPremium(holder,buyer,ny),
+     "Boardwalk still out-charges New York Ave");
+  ok(completionPremium(holder,buyer,bw) < completionPremium(holder,buyer,il),
+     "Boardwalk still out-charges Illinois Ave");
+  // and in cash terms the ask actually came down
+  const ask = prem => BOARD[bw].price*0.55*1.18*prem;
+  ok(ask(completionPremium(holder,buyer,bw)) < ask(2.2) - 50,
+     "the Boardwalk ask barely moved");
+});
+
+test("the levy tracks the damage, so utilities are cheap and rent-heavy sets are not", () => {
+  const holder = {cfg:{trade:"fair"}}, buyer = {cfg:{houseTarget:3}};
+  const cheapest = OWNABLE.reduce((a,i) =>
+    completionPremium(holder,buyer,i) < completionPremium(holder,buyer,a) ? i : a, OWNABLE[0]);
+  eq(BOARD[cheapest].g, "util", "the least dangerous set to complete should be the utilities");
+  // a set worth more rent is worth more to block, at equal cost
+  ok(GROUP_DAMAGE.orange[3] > GROUP_DAMAGE.lightblue[3], "fixture: orange must out-earn light blue");
+  ok(completionPremium(holder,buyer,IDX["St. James Pl"])
+     > completionPremium(holder,buyer,IDX["Oriental Ave"]),
+     "the more lucrative colour is not the dearer one to complete");
+});
+
+/* The tightest statement of proposer/holder agreement there is: the cash a
+   buyer puts up must be the least the holder would take. If the two price
+   the completion levy differently the buyer either overpays on every
+   set-completing deal or walks away from ones it could have closed, and
+   neither shows up as a failed trade. */
+test("the cash a buyer offers is the least the holder would accept", () => {
+  const g = mk([D({trade:"fair"}), D({priority:["darkblue"], trade:"fair", houseTarget:4})]);
+  settleTrades(g);
+  const park = IDX["Park Place"];
+  g.owner[IDX["Boardwalk"]] = 1;        // the buyer's only deed, so no bundle can form
+  g.owner[park] = 0;
+  const p = g.players[1], opp = g.players[0];
+  p.cash = 3000;
+
+  const offer = bestOfferAgainst(g, p, opp);
+  ok(offer, "no offer was built");
+  deepEq(offer.give, [], "fixture: the deal under test must be cash-only");
+  ok(offer.cash > 0, "fixture: the buyer must be paying cash");
+  ok(completesFor(g, p, park), "fixture: the deed must complete the buyer's colour");
+  ok(evaluateOffer(g, offer), "the holder refused the buyer's own asking price");
+
+  /* The ask is rounded up to the nearest $10, so exactly one step below it
+     has to fall short. Any wider gap means the two sides disagree. */
+  const shaved = Object.assign({}, offer, {cash: offer.cash - 10});
+  eq(evaluateOffer(g, shaved), false,
+     "the buyer is paying more than the holder requires — the two price the levy differently");
+});
+
+/* A set is exactly as dangerous as what its new owner means to build on it,
+   so the levy is read off the buyer's house target. An orange monopoly kept
+   at one house each earns a fraction of the same set under hotels, and is
+   priced accordingly. */
+test("a buyer who builds higher is charged more, because the set is worth more", () => {
+  const holder = {cfg:{trade:"fair"}};
+  const ny = IDX["New York Ave"];
+  const at = t => completionPremium(holder, {cfg:{houseTarget:t}}, ny);
+  ok(at(5) > at(1) + 0.25,
+     `hotel-builder charged ${at(5).toFixed(2)} vs one-house ${at(1).toFixed(2)} — the target is being ignored`);
+  ok(GROUP_DAMAGE.orange[5] > GROUP_DAMAGE.orange[1]*5,
+     "fixture: a hotel set must out-earn a one-house set by a wide margin");
 });
 
 /* ==================================================================
@@ -3539,17 +3911,26 @@ const STATE_RULES = {
   "nothing is built on a mortgaged deed": g => {
     for(const i of OWNABLE) if(g.level[i] > 0 && g.mortgaged[i]) return BOARD[i].n;
   },
-  /* Houses go up and come down evenly. The one legal exception: when the
-     bank has fewer than four houses left, a hotel cannot be broken into
-     houses and must be sold back whole, which drops that deed straight to
-     zero while its neighbours keep their hotels. That leaves every deed in
-     the colour at either 0 or a hotel and nothing in between, so the shape
-     is still checked — just against the wider rule. */
+  /* Houses go up and come down evenly. The one legal exception: when the bank
+     has fewer than four houses left, a hotel cannot be broken into houses and
+     must be sold back whole, which drops that deed straight to zero while its
+     neighbours keep what they had. Since a colour is even until that happens,
+     the neighbours are on 4 or 5 when it does — so a gap down to zero is only
+     legal in a colour still topped by a hotel or a full four houses, and the
+     deeds that do still carry buildings must remain within one level of each
+     other. Anything else is a genuine even-build break.
+
+     Shape alone cannot separate "built 5,5,5 then razed two" from "built only
+     the first deed", so the build ORDER is pinned by the unit tests in the
+     Building suite rather than here. */
   "a colour is built and sold down evenly": g => {
     for(const k of GROUP_KEYS){
       const lv = GROUPS[k].members.map(i=>g.level[i]);
       if(Math.max(...lv) - Math.min(...lv) <= 1) continue;
-      if(lv.every(v => v === 0 || v === 5)) continue;   // razed hotel, see above
+      const standing = lv.filter(v => v > 0);
+      const evenWhereBuilt = Math.max(...standing) - Math.min(...standing) <= 1;
+      const razedFromTheTop = Math.max(...lv) >= 4;
+      if(evenWhereBuilt && razedFromTheTop) continue;    // a hotel sold back whole
       return GROUPS[k].name + " at " + lv.join(",");
     }
   },
@@ -3582,6 +3963,22 @@ test("300 full games across every doctrine break no rule", () => {
           broken["a prioritised colour is never traded away"] = "seed " + seed + ": P" + to.id + " gave " + BOARD[i].n;
         for(const i of o.give.concat(o.get)) if(g.level[i] > 0 && !broken["built deeds never change hands"])
           broken["built deeds never change hands"] = "seed " + seed + ": " + BOARD[i].n;
+        /* Packages are assembled from two greedy orderings, so the same deed
+           must never end up in one twice, and a bundle must stay inside the
+           cap the offer builder advertises. */
+        if(new Set(o.give).size !== o.give.length && !broken["a package never lists a deed twice"])
+          broken["a package never lists a deed twice"] =
+            "seed " + seed + ": " + o.give.map(i=>BOARD[i].n).join(", ");
+        if(o.give.length > 3 && !broken["a package stays within MAX_GIVE deeds"])
+          broken["a package stays within MAX_GIVE deeds"] = "seed " + seed + ": " + o.give.length + " deeds";
+        /* A Fair Value or Set Blocker player must not hand over a complete
+           colour, whether in one deed or spread across a bundle. */
+        if((from.cfg.trade === "fair" || from.cfg.trade === "blocker")
+           && completesForWith(g, to, o.give).length
+           && !broken["fair and blocker never hand over a set"])
+          broken["fair and blocker never hand over a set"] =
+            "seed " + seed + ": P" + from.id + " (" + from.cfg.trade + ") gave "
+            + o.give.map(i=>BOARD[i].n).join(" + ");
       }
     }
     checkNow("seed " + seed + " final");
